@@ -15,7 +15,6 @@ def get_default_menus() -> List[IMenu]:
                 Ingrediente("Tomate","unid",1),
             ],
             precio=1800,
-            icono_path="IMG/icono_hotdog_sin_texto_64x64.png",
         ),
         CrearMenu(
             "Hamburguesa",
@@ -80,7 +79,7 @@ def get_default_menus() -> List[IMenu]:
             [
                 Ingrediente("Lechuga","unid", 1),
                 Ingrediente("Tomate","unid", 1),
-                Ingrediente("zanahoria","unid",1),
+                Ingrediente("Zanahoria","unid",1),
             ],
             precio=1500
         ),

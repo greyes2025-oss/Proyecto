@@ -459,6 +459,8 @@ class AplicacionConPestanas(ctk.CTk):
 
     
      
+    
+    
     def eliminar_ingrediente(self):
         seleccionado = self.tree.focus()
         if not seleccionado:
@@ -469,7 +471,9 @@ class AplicacionConPestanas(ctk.CTk):
         nombre_ingrediente = self.tree.item(seleccionado)['values'][0]
     
         if messagebox.askyesno("Confirmar", f"¿Estás seguro de que quieres eliminar '{nombre_ingrediente}'?"):
+        
             self.stock.eliminar(nombre_ingrediente)
+        
             self.actualizar_treeview()
     
     # Obtiene el nombre del ingrediente de la fila seleccionada
@@ -478,8 +482,22 @@ class AplicacionConPestanas(ctk.CTk):
             if messagebox.askyesno("Confirmar", f"¿Estás seguro de que quieres eliminar '{nombre_ingrediente}'?"):
         
                 self.stock.eliminar(nombre_ingrediente)
+       
                 self.actualizar_treeview()
-
+    
+                nombre_ingrediente = self.tree.item(seleccionado)['values'][0]
+    
+                if messagebox.askyesno("Confirmar", f"¿Estás seguro de que quieres eliminar '{nombre_ingrediente}'?"):
+                    self.stock.eliminar(nombre_ingrediente)
+                    self.actualizar_treeview()
+    
+    # Obtiene el nombre del ingrediente de la fila seleccionada
+                    nombre_ingrediente = self.tree.item(seleccionado)['values'][0]
+    
+                    if messagebox.askyesno("Confirmar", f"¿Estás seguro de que quieres eliminar '{nombre_ingrediente}'?"):
+        
+                        self.stock.eliminar(nombre_ingrediente)
+                        self.actualizar_treeview() 
 
     def actualizar_treeview(self):
     # Limpia la tabla de cualquier dato antiguo

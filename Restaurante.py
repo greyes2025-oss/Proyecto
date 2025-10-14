@@ -96,7 +96,7 @@ class AplicacionConPestanas(ctk.CTk):
         if self.df_csv is None:
             CTkMessagebox(title="Error", message="Primero debes cargar un archivo CSV.", icon="warning")
             return
-
+        #Verificamos que el CSV tenga las columnas necesarias
         if 'nombre' not in self.df_csv.columns or 'cantidad' not in self.df_csv.columns:
             CTkMessagebox(title="Error", message="El CSV debe tener columnas 'nombre' y 'cantidad'.", icon="warning")
             return
@@ -104,13 +104,33 @@ class AplicacionConPestanas(ctk.CTk):
             nombre = str(row['nombre'])
             cantidad = str(row['cantidad'])
             unidad = str(row['unidad'])
-            ingrediente = Ingrediente(nombre=nombre,unidad=unidad,cantidad=cantidad)
-            self.stock.agregar_ingrediente(ingrediente)
+
+            self.stock.agregar(nombre, unidad, int(cantidad))###
+
+
         CTkMessagebox(title="Stock Actualizado", message="Ingredientes agregados al stock correctamente.", icon="info")
         self.actualizar_treeview()   
 
-    def cargar_csv(self):
-        pass
+    def cargar_csv(self): ###
+        #abirir un dialogo para seleccionar el archivo
+        archivo = filedialog.askopenfilename(
+            title="Seleccionar archivo CSV",
+            filetypes=(("Archivos CSV", "*.csv"), ("Todos los archivos", "*.*"))
+        )
+        if not archivo:
+            return #si el usuario cancela
+        
+        try:
+            self.df_csv = pd.read_csv(archivo) #LEER el csv con pandas
+
+            #mostrar en la tabla del tab
+            self.mostrar_dataframe_en_tabla(self.df_csv)
+            #habilitar el boton de agregar al stock
+            self.boton_agregar_stock.configure(command=self.agregar_csv_al_stock)
+
+        except Exception as e:
+            CTkMessagebox(title="Error", message=f"No se pudo cargar el archivo CSV.\n{e}", icon="warning")
+        
         
     def mostrar_dataframe_en_tabla(self, df):
         if self.tabla_csv:
@@ -359,14 +379,22 @@ class AplicacionConPestanas(ctk.CTk):
             CTkMessagebox(title="Error de Validación", message="La cantidad debe ser un número entero positivo.", icon="warning")
             return False
 
-    def ingresar_ingrediente(self):
+    def ingresar_ingrediente(self):###
         pass
 
-    def eliminar_ingrediente(self):
+    def eliminar_ingrediente(self):###
         pass
 
-    def actualizar_treeview(self):
-        pass
+    def actualizar_treeview(self):###
+        # Limpia el treeview
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        #obtendremos la lista de ingredientes del stock
+        for ingrediente in self.stock.get_stock_list(): #
+            self.tree.insert(
+                "", "end", values=(ingrediente.nombre, ingrediente.unidad, ingrediente.cantidad)
+            )
 
 
 if __name__ == "__main__":

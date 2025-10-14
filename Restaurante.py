@@ -429,7 +429,7 @@ class AplicacionConPestanas(ctk.CTk):
         else:
             CTkMessagebox(title="Error de Validación", message="La cantidad debe ser un número entero positivo.", icon="warning")
             return False
-#-------------------------------------------------------------------------------#
+#------------------------------------funciones stock------------------------------------#
     def ingresar_ingrediente(self):
         nombre = self.entry_nombre.get().strip()
         unidad = self.combo_unidad.get()
@@ -457,10 +457,6 @@ class AplicacionConPestanas(ctk.CTk):
         self.entry_cantidad.delete(0, 'end')
         self.actualizar_treeview()
 
-    
-     
-    
-    
     def eliminar_ingrediente(self):
         seleccionado = self.tree.focus()
         if not seleccionado:
@@ -473,47 +469,18 @@ class AplicacionConPestanas(ctk.CTk):
         if messagebox.askyesno("Confirmar", f"¿Estás seguro de que quieres eliminar '{nombre_ingrediente}'?"):
         
             self.stock.eliminar(nombre_ingrediente)
-        
+       
             self.actualizar_treeview()
     
-    # Obtiene el nombre del ingrediente de la fila seleccionada
-            nombre_ingrediente = self.tree.item(seleccionado)['values'][0]
-    
-            if messagebox.askyesno("Confirmar", f"¿Estás seguro de que quieres eliminar '{nombre_ingrediente}'?"):
-        
-                self.stock.eliminar(nombre_ingrediente)
-       
-                self.actualizar_treeview()
-    
-                nombre_ingrediente = self.tree.item(seleccionado)['values'][0]
-    
-                if messagebox.askyesno("Confirmar", f"¿Estás seguro de que quieres eliminar '{nombre_ingrediente}'?"):
-                    self.stock.eliminar(nombre_ingrediente)
-                    self.actualizar_treeview()
-    
-    # Obtiene el nombre del ingrediente de la fila seleccionada
-                    nombre_ingrediente = self.tree.item(seleccionado)['values'][0]
-    
-                    if messagebox.askyesno("Confirmar", f"¿Estás seguro de que quieres eliminar '{nombre_ingrediente}'?"):
-        
-                        self.stock.eliminar(nombre_ingrediente)
-                        self.actualizar_treeview() 
-
     def actualizar_treeview(self):
     # Limpia la tabla de cualquier dato antiguo
         for item in self.tree.get_children():
             self.tree.delete(item)
     
-    # Llama al metodo correcto de la clase Stock
-    # para obtener los ingredientes y los añade a la tabla
+    # Llama al método correcto de la clase Stock
+    
         for ingrediente in self.stock.get_stock_list():
-            self.tree.insert("", "end", values=(ingrediente.nombre, ingrediente.unidad, ingrediente.cantidad))
-
-        #obtendremos la lista de ingredientes del stock
-            for ingrediente in self.stock.get_stock_list(): #
-                self.tree.insert(
-                    "", "end", values=(ingrediente.nombre, ingrediente.unidad, ingrediente.cantidad)
-                )
+           self.tree.insert("", "end", values=(ingrediente.nombre, ingrediente.unidad, ingrediente.cantidad))
 #-------------------------------------modificacion de ingresar ingre, eliminar ingre y actualizar treeview-------------------------
 if __name__ == "__main__":
     import customtkinter as ctk

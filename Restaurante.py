@@ -15,6 +15,7 @@ from menu_pdf import create_menu_pdf
 from ctk_pdf_viewer import CTkPDFViewer
 import os
 from tkinter.font import nametofont
+
 class AplicacionConPestanas(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -253,29 +254,29 @@ class AplicacionConPestanas(ctk.CTk):
 
         self.boton_generar_menu = ctk.CTkButton(frame_treeview, text="Generar Menú", command=self.generar_menus)
         self.boton_generar_menu.pack(pady=10)
+
     def tarjeta_click(self, event, menu):
         suficiente_stock = True
-        if self.stock.lista_ingredientes==[]:
-            suficiente_stock=False
+        if not self.stock.ingredientes:
+            suficiente_stock = False
+
+
         for ingrediente_necesario in menu.ingredientes:
-            for ingrediente_stock in self.stock.lista_ingredientes:
-                if ingrediente_necesario.nombre == ingrediente_stock.nombre:
-                    if int(ingrediente_stock.cantidad) < int(ingrediente_necesario.cantidad):
-                        suficiente_stock = False
-                        break
-            if not suficiente_stock:
+            stock = self.stock.ingredientes.get(ingrediente_necesario.nombre.lower())
+            if not stock or stock.cantidad < ingrediente_necesario.cantidad:
+                suficiente_stock = False
                 break
         
         if suficiente_stock:
             for ingrediente_necesario in menu.ingredientes:
-                for ingrediente_stock in self.stock.lista_ingredientes:
-                    if ingrediente_necesario.nombre == ingrediente_stock.nombre:
-                        ingrediente_stock.cantidad = str(int(ingrediente_stock.cantidad) - int(ingrediente_necesario.cantidad))
-            
+                stock = self.stock.ingredientes.get(ingrediente_necesario.nombre.lower())
+                stock.cantidad -= ingrediente_necesario.cantidad
+   
             self.pedido.agregar_menu(menu)
             self.actualizar_treeview_pedido()
             total = self.pedido.calcular_total()
             self.label_total.configure(text=f"Total: ${total:.2f}")
+
         else:
             CTkMessagebox(title="Stock Insuficiente", message=f"No hay suficientes ingredientes para preparar el menú '{menu.nombre}'.", icon="warning")
     
@@ -283,16 +284,78 @@ class AplicacionConPestanas(ctk.CTk):
         imagen = Image.open(ruta_icono)
         icono_menu = ctk.CTkImage(imagen, size=(64, 64))
         return icono_menu
-
+#-----------------------------------------
     
-    def generar_menus(self):
-        pass
+    def generar_menus(self):####
+        for p in tarjetas_frame.winfo_children():
+            p.destroy()
+        self.menus_creados.clear()
 
-    def eliminar_menu(self):
-        pass
+        for menu in self.menus:
+            suficiente_stock = True
+            #revisar si hay suficiente stock
+            for ingrediente in menu.ingredientes:
+                stock = self.stock.ingredientes.get(ingrediente.nombre.lower())
+                if not stock or stock.cantidad < ingrediente.cantidad:
+                    suficiente_stock = False
+                    break
 
-    def generar_boleta(self):
-        pass
+            if suficiente_stock:
+                self.crear_tarjeta(menu)
+                self.menus_creados.add(menu.nombre) #aqui guardamos los menus que se pueden crear
+
+    def eliminar_menu(self): ####
+        seleccionado = self.treeview_menu.selection()
+        if not seleccionado:
+            CTkMessagebox(title="Error", message="Selecciona un menú para eliminar.", icon="warning")
+            return
+
+        for item in seleccionado: #
+            nombre_menu = self.treeview_menu.item(item, "values")[0] #
+
+            #devolver ingredientes al stock
+            for menu in self.pedido.menus:
+                if menu.nombre == nombre_menu:
+                    for ingrediente_necesario in menu.ingredientes:
+                        self.stock.agregar(ingrediente_necesario.nombre, ingrediente_necesario.unidad, ingrediente_necesario.cantidad)
+                    break
+         
+            self.pedido.eliminar_menu(nombre_menu) #eliminar del pedido
+
+        self.actualizar_treeview_pedido()
+        Total = self.pedido.calcular_total()
+        self.label_total.configure(text=f"Total: ${Total:.2f}")
+        self.actualizar_treeview() # para ver el stock actualizado
+
+    def generar_boleta(self):###
+        if not self.pedido.menus:
+            CTkMessagebox(title="Error", message="No hay menús en el pedido para generar una boleta.", icon="warning")
+            return
+
+        try:
+            pdf_path = "boleta.pdf"
+            BoletaFacade.generar_boleta(self.pedido, pdf_path,
+                nombre_negocio="Restaurante",
+                direccion="Av. Siempre Viva 123",
+                telefono="+56 9 1234 5678",
+            )
+            # Mostrar la boleta en la pestaña de Boleta
+            if self.pdf_viewer_boleta is not None:
+                try:
+                    self.pdf_viewer_boleta.pack_forget() # Ocul
+                    self.pdf_viewer_boleta.destroy() # Des
+                except Exception:
+                    pass
+                self.pdf_viewer_boleta = None # Re
+
+            abs_pdf = os.path.abspath(pdf_path)
+            self.pdf_viewer_boleta = CTkPDFViewer(self.pdf_frame_boleta, file=abs_pdf)
+            self.pdf_viewer_boleta.pack(expand=True, fill="both")
+        
+        except Exception as e:
+            CTkMessagebox(title="Error", message=f"No se pudo generar/mostrar la boleta.\n{e}", icon="warning")
+
+            #-------------------------------------------------
 
     def configurar_pestana2(self):
         frame_superior = ctk.CTkFrame(self.tab2)

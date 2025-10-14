@@ -263,21 +263,26 @@ class AplicacionConPestanas(ctk.CTk):
             if not stock or stock.cantidad < ingrediente.cantidad:
                 suficiente_stock = False
                 break
-        if not suficiente_stock:
+
+        if suficiente_stock:
+            # Descontar ingredientes del stock
             for ingrediente in menu.ingredientes:
                 self.stock.descontar(ingrediente.nombre.lower(), ingrediente.cantidad)
-
+            #agregar al pedido
             self.pedido.agregar_menu(menu)
+
+            #actuazlizar vistas
             self.actualizar_treeview_pedido()
             Total = self.pedido.calcular_total()
             self.label_total.configure(text=f"Total: ${Total:.2f}")
+
         else:
             CTkMessagebox(
                 title="Error", 
                 message="No hay suficiente stock para este menú.", 
                 icon="warning")
 
-            self.actualizar_treeview()
+        self.actualizar_treeview()
             
 
     def cargar_icono_menu(self, ruta_icono):
@@ -386,7 +391,7 @@ class AplicacionConPestanas(ctk.CTk):
         self.boton_generar_boleta=ctk.CTkButton(frame_inferior,text="Generar Boleta",command=self.generar_boleta)
         self.boton_generar_boleta.pack(side="bottom",pady=10)
 
-    def crear_tarjeta(self, menu):
+    def crear_tarjeta(self, menu, suficiente_stock):
         num_tarjetas = len(self.menus_creados)
         fila = 0
         columna = num_tarjetas

@@ -4,13 +4,14 @@ class Pedido:
         self.menus = []  
 
     def agregar_menu(self, menu: CrearMenu):
-        pass
+        self.menus.append(menu)
 
     def eliminar_menu(self, nombre_menu: str):
-        pass
+        self.menus = [menu for menu in self.menus if menu.nombre != nombre_menu]
 
     def mostrar_pedido(self):
-        pass
+        for menu in self.menus:
+            print(f"Menu: {menu.nombre}, Precio: {menu.precio}")
 
     def calcular_total(self) -> float:
-        pass
+        return sum(menu.precio for menu in self.menus)

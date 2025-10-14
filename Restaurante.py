@@ -37,30 +37,27 @@ class AplicacionConPestanas(ctk.CTk):
 
         self.crear_pestanas()
 
-    def actualizar_treeview(self):
-
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-
-
-        for ingrediente in self.stock.lista_ingredientes:
-            self.tree.insert("", "end", values=(ingrediente.nombre,ingrediente.unidad, ingrediente.cantidad))    
-
     def on_tab_change(self):
         selected_tab = self.tabview.get()
+
         if selected_tab == "carga de ingredientes":
             print('carga de ingredientes')
         if selected_tab == "Stock":
             self.actualizar_treeview()
         if selected_tab == "Pedido":
             self.actualizar_treeview()
+            self.actualizar_treeview_pedido()
             print('pedido')
         if selected_tab == "Carta restorante":
             self.actualizar_treeview()
             print('Carta restorante')
+            self.actualizar_treeview_stock()
         if selected_tab == "Boleta":
             self.actualizar_treeview()
-            print('Boleta')       
+            print('Boleta')
+            self.actualizar_treeview_stock()
+
+
     def crear_pestanas(self):
         self.tab3 = self.tabview.add("carga de ingredientes")  
         self.tab1 = self.tabview.add("Stock")
@@ -73,6 +70,18 @@ class AplicacionConPestanas(ctk.CTk):
         self.configurar_pestana3()
         self._configurar_pestana_crear_menu()
         self._configurar_pestana_ver_boleta()
+
+    def cargar_tarjetas_pedido(self):
+        #limpiar tarjetas anteriores
+        for u in tarjetas_frame.winfo_children():
+            u.destroy()
+
+        self.menus_creados.clear()
+
+        #crear tarjetas para cada menu
+        for menu in self.menus:
+            self.crear_tarjeta(menu, True)
+            self.menus_creados.add(menu.nombre)
 
     def configurar_pestana3(self):
         label = ctk.CTkLabel(self.tab3, text="Carga de archivo CSV")
@@ -429,7 +438,7 @@ class AplicacionConPestanas(ctk.CTk):
         else:
             CTkMessagebox(title="Error de Validación", message="La cantidad debe ser un número entero positivo.", icon="warning")
             return False
-#------------------------------------funciones stock------------------------------------#
+#-------------------------------------------------------------------------------#
     def ingresar_ingrediente(self):
         nombre = self.entry_nombre.get().strip()
         unidad = self.combo_unidad.get()
@@ -457,6 +466,7 @@ class AplicacionConPestanas(ctk.CTk):
         self.entry_cantidad.delete(0, 'end')
         self.actualizar_treeview()
 
+    
     def eliminar_ingrediente(self):
         seleccionado = self.tree.focus()
         if not seleccionado:
@@ -469,18 +479,28 @@ class AplicacionConPestanas(ctk.CTk):
         if messagebox.askyesno("Confirmar", f"¿Estás seguro de que quieres eliminar '{nombre_ingrediente}'?"):
         
             self.stock.eliminar(nombre_ingrediente)
-       
+        
             self.actualizar_treeview()
     
+    # Obtiene el nombre del ingrediente de la fila seleccionada
+            nombre_ingrediente = self.tree.item(seleccionado)['values'][0]
+    
+        if messagebox.askyesno("Confirmar", f"¿Estás seguro de que quieres eliminar '{nombre_ingrediente}'?"):
+            self.stock.eliminar(nombre_ingrediente)
+            self.actualizar_treeview()
+
     def actualizar_treeview(self):
     # Limpia la tabla de cualquier dato antiguo
         for item in self.tree.get_children():
             self.tree.delete(item)
     
-    # Llama al método correcto de la clase Stock
-    
+    # Llama al metodo correcto de la clase Stock
+    # para obtener los ingredientes y los añade a la tabla
         for ingrediente in self.stock.get_stock_list():
-           self.tree.insert("", "end", values=(ingrediente.nombre, ingrediente.unidad, ingrediente.cantidad))
+            self.tree.insert("", "end", values=(ingrediente.nombre, ingrediente.unidad, ingrediente.cantidad))
+
+
+        
 #-------------------------------------modificacion de ingresar ingre, eliminar ingre y actualizar treeview-------------------------
 if __name__ == "__main__":
     import customtkinter as ctk

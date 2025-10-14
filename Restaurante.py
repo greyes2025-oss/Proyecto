@@ -385,7 +385,7 @@ class AplicacionConPestanas(ctk.CTk):
         self.boton_generar_boleta=ctk.CTkButton(frame_inferior,text="Generar Boleta",command=self.generar_boleta)
         self.boton_generar_boleta.pack(side="bottom",pady=10)
 
-    def crear_tarjeta(self, menu, suficiente_stock):
+    def crear_tarjeta(self, menu, suficiente_stock): #####
         num_tarjetas = len(self.menus_creados)
         fila = 0
         columna = num_tarjetas

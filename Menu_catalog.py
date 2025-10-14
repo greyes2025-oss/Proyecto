@@ -11,10 +11,87 @@ def get_default_menus() -> List[IMenu]:
             [
                 Ingrediente("Vienesa","unid", 1),
                 Ingrediente("Pan de completo","unid", 1),
-                Ingrediente("Palta","kg",0.5),
-                Ingrediente("Tomate","kg",0.2),
+                Ingrediente("Palta","unid",1),
+                Ingrediente("Tomate","unid",1),
             ],
             precio=1800,
             icono_path="IMG/icono_hotdog_sin_texto_64x64.png",
         ),
+        CrearMenu(
+            "Hamburguesa",
+            [
+                Ingrediente("Churrasco de carne","unid", 1),
+                Ingrediente("Pan de hamburguesa","unid", 1),
+                Ingrediente("Lamina de queso","unid",1),
+            ],
+            precio=3500,
+        ),
+        CrearMenu(
+            "Empanada",
+            [
+                Ingrediente("Carne","unid", 1),
+                Ingrediente("Cebolla","unid", 1),
+                Ingrediente("Masa de empanada","unid",1),
+            ],
+            precio=1000,
+        ),
+        CrearMenu(
+            "Papas fritas",
+            [
+                Ingrediente("Papas","unid", 5),
+                
+            ],
+            precio=500
+        ),
+        CrearMenu(
+            "Pepsi",
+            [
+                Ingrediente("Pepsi","unid", 1),
+            ],
+            precio=1100
+        ),
+        CrearMenu(
+            "Coca cola",
+            [
+                Ingrediente("Coca cola","unid", 1),
+            ],
+            precio=1200
+        ),
+        CrearMenu(
+            "Panqueques",
+            [
+                Ingrediente("Panqueques","unid", 2),
+                Ingrediente("Manjar","unid", 1),
+                Ingrediente("Azucar flor","unid",1),
+            ],
+            precio=2000
+        ),
+        CrearMenu(
+            "Pollo frito",
+            [
+                Ingrediente("Presa de pollo","unid", 1),
+                Ingrediente("harina","unid", 1),
+                Ingrediente("Aceite","unid",1),
+            ],
+            precio=2800
+        ),
+        CrearMenu(
+            "Ensalada Mixta",
+            [
+                Ingrediente("Lechuga","unid", 1),
+                Ingrediente("Tomate","unid", 1),
+                Ingrediente("zanahoria","unid",1),
+            ],
+            precio=1500
+        ),
+        CrearMenu(
+            "Chorillana",
+            [
+                Ingrediente("Carne","unid", 2),
+                Ingrediente("Huevos","unid", 2),
+                Ingrediente("Papas","unid", 3),
+                Ingrediente("Cebolla","unid",1),
+            ],
+            precio=3500
+        )
     ]

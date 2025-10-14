@@ -291,23 +291,17 @@ class AplicacionConPestanas(ctk.CTk):
         return icono_menu
 #-----------------------------------------
     
-    def generar_menus(self):####
-        for p in tarjetas_frame.winfo_children():
-            p.destroy()
-        self.menus_creados.clear()
-
-        for menu in self.menus:
-            suficiente_stock = True
-            #revisar si hay suficiente stock
-            for ingrediente in menu.ingredientes:
-                stock = self.stock.ingredientes.get(ingrediente.nombre.lower())
-                if not stock or stock.cantidad < ingrediente.cantidad:
-                    suficiente_stock = False
-                    break
-
-            
-            self.crear_tarjeta(menu, suficiente_stock)
-            self.menus_creados.add(menu.nombre) #aqui guardamos los menus que se pueden crear
+    def generar_menus(self):
+    # Llama al metodo .esta_disponible() de cada menú
+        disponibles = [m.nombre for m in self.menus if m.esta_disponible(self.stock)]
+    
+        if not disponibles:
+            mensaje = "No hay suficientes ingredientes para preparar ningun menú."
+        else:
+            mensaje = "Con el stock actual se puede preparar:\n\n- " + "\n- ".join(disponibles)
+    
+    #ventana emergente
+        messagebox.showinfo("Menús Disponibles", mensaje)
 
     def eliminar_menu(self): ####
         seleccionado = self.treeview_menu.selection()
@@ -435,25 +429,74 @@ class AplicacionConPestanas(ctk.CTk):
         else:
             CTkMessagebox(title="Error de Validación", message="La cantidad debe ser un número entero positivo.", icon="warning")
             return False
+#-------------------------------------------------------------------------------#
+    def ingresar_ingrediente(self):
+        nombre = self.entry_nombre.get().strip()
+        unidad = self.combo_unidad.get()
+        cantidad_str = self.entry_cantidad.get()
 
-    def ingresar_ingrediente(self):###
-        pass
+    # Validacion de datos
+        if not nombre:
+            messagebox.showerror("Error de validacion", "El nombre no puede estar vacio")
+            return
+        try:
+            cantidad = int(cantidad_str)
+            if cantidad <= 0:
+                messagebox.showerror("Error de validacion", "La cantidad debe ser un numero entero positivo")
+                return
+        except ValueError:
+            messagebox.showerror("Error de validacion", "La cantidad debe ser un número entero valido")
+            return
+    
+    # Llama al matodo de la clase Stock
+        self.stock.agregar(nombre, unidad, cantidad)
+        messagebox.showinfo("exito", f"'{nombre}' ha sido agregado en el stock")
+    
+    # Limpia los campos y actualiza la tabla
+        self.entry_nombre.delete(0, 'end')
+        self.entry_cantidad.delete(0, 'end')
+        self.actualizar_treeview()
 
-    def eliminar_ingrediente(self):###
-        pass
+    
+     
+    def eliminar_ingrediente(self):
+        seleccionado = self.tree.focus()
+        if not seleccionado:
+            messagebox.showwarning("Sin selección", "Por favor, selecciona un ingrediente de la tabla para eliminar.")
+            return
+    
+    # Obtiene el nombre del ingrediente de la fila seleccionada
+        nombre_ingrediente = self.tree.item(seleccionado)['values'][0]
+    
+        if messagebox.askyesno("Confirmar", f"¿Estás seguro de que quieres eliminar '{nombre_ingrediente}'?"):
+            self.stock.eliminar(nombre_ingrediente)
+            self.actualizar_treeview()
+    
+    # Obtiene el nombre del ingrediente de la fila seleccionada
+            nombre_ingrediente = self.tree.item(seleccionado)['values'][0]
+    
+            if messagebox.askyesno("Confirmar", f"¿Estás seguro de que quieres eliminar '{nombre_ingrediente}'?"):
+        
+                self.stock.eliminar(nombre_ingrediente)
+                self.actualizar_treeview()
 
-    def actualizar_treeview(self):###
-        # Limpia el treeview
+
+    def actualizar_treeview(self):
+    # Limpia la tabla de cualquier dato antiguo
         for item in self.tree.get_children():
             self.tree.delete(item)
+    
+    # Llama al metodo correcto de la clase Stock
+    # para obtener los ingredientes y los añade a la tabla
+        for ingrediente in self.stock.get_stock_list():
+            self.tree.insert("", "end", values=(ingrediente.nombre, ingrediente.unidad, ingrediente.cantidad))
 
         #obtendremos la lista de ingredientes del stock
-        for ingrediente in self.stock.get_stock_list(): #
-            self.tree.insert(
-                "", "end", values=(ingrediente.nombre, ingrediente.unidad, ingrediente.cantidad)
-            )
-
-
+            for ingrediente in self.stock.get_stock_list(): #
+                self.tree.insert(
+                    "", "end", values=(ingrediente.nombre, ingrediente.unidad, ingrediente.cantidad)
+                )
+#-------------------------------------modificacion de ingresar ingre, eliminar ingre y actualizar treeview-------------------------
 if __name__ == "__main__":
     import customtkinter as ctk
     from tkinter import ttk

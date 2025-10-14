@@ -76,16 +76,20 @@ class AplicacionConPestanas(ctk.CTk):
     def configurar_pestana3(self):
         label = ctk.CTkLabel(self.tab3, text="Carga de archivo CSV")
         label.pack(pady=20)
+        #boton de agregar csv
         boton_cargar_csv = ctk.CTkButton(self.tab3, text="Cargar CSV", fg_color="#1976D2", text_color="white",command=self.cargar_csv)
 
-        boton_cargar_csv.pack(pady=10)
+        boton_cargar_csv.pack(pady=10) 
 
+        #frame para la tabla del csv
         self.frame_tabla_csv = ctk.CTkFrame(self.tab3)
         self.frame_tabla_csv.pack(fill="both", expand=True, padx=10, pady=10)
-        self.df_csv = None   
-        self.tabla_csv = None
+
+        self.df_csv = None    #DataFrame cargado desde el CSV
+        self.tabla_csv = None  #Tabla Treeview para mostrar el DataFrame
 
         self.boton_agregar_stock = ctk.CTkButton(self.frame_tabla_csv, text="Agregar al Stock")
+        self.boton_agregar_stock.configure(command=self.agregar_csv_al_stock) #####
         self.boton_agregar_stock.pack(side="bottom", pady=10)
  
     def agregar_csv_al_stock(self):

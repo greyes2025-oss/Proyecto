@@ -69,7 +69,7 @@ def get_default_menus() -> List[IMenu]:
             "Pollo frito",
             [
                 Ingrediente("Presa de pollo","unid", 1),
-                Ingrediente("harina","unid", 1),
+                Ingrediente("Harina","unid", 1),
                 Ingrediente("Aceite","unid",1),
             ],
             precio=2800
@@ -84,7 +84,7 @@ def get_default_menus() -> List[IMenu]:
             precio=1500
         ),
         CrearMenu(
-            "Chorillana",
+            "Chorrillana",
             [
                 Ingrediente("Carne","unid", 2),
                 Ingrediente("Huevos","unid", 2),

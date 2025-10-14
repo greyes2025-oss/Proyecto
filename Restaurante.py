@@ -257,29 +257,29 @@ class AplicacionConPestanas(ctk.CTk):
 
     def tarjeta_click(self, event, menu):
         suficiente_stock = True
-        if not self.stock.ingredientes:
-            suficiente_stock = False
 
-
-        for ingrediente_necesario in menu.ingredientes:
-            stock = self.stock.ingredientes.get(ingrediente_necesario.nombre.lower())
-            if not stock or stock.cantidad < ingrediente_necesario.cantidad:
+        for ingrediente in menu.ingredientes:
+            stock = self.stock.ingredientes.get(ingrediente.nombre.lower())
+            if not stock or stock.cantidad < ingrediente.cantidad:
                 suficiente_stock = False
                 break
-        
-        if suficiente_stock:
-            for ingrediente_necesario in menu.ingredientes:
-                stock = self.stock.ingredientes.get(ingrediente_necesario.nombre.lower())
-                stock.cantidad -= ingrediente_necesario.cantidad
-   
+        if not suficiente_stock:
+            for ingrediente in menu.ingredientes:
+                self.stock.descontar(ingrediente.nombre.lower(), ingrediente.cantidad)
+
             self.pedido.agregar_menu(menu)
             self.actualizar_treeview_pedido()
-            total = self.pedido.calcular_total()
-            self.label_total.configure(text=f"Total: ${total:.2f}")
-
+            Total = self.pedido.calcular_total()
+            self.label_total.configure(text=f"Total: ${Total:.2f}")
         else:
-            CTkMessagebox(title="Stock Insuficiente", message=f"No hay suficientes ingredientes para preparar el menú '{menu.nombre}'.", icon="warning")
-    
+            CTkMessagebox(
+                title="Error", 
+                message="No hay suficiente stock para este menú.", 
+                icon="warning")
+
+            self.actualizar_treeview()
+            
+
     def cargar_icono_menu(self, ruta_icono):
         imagen = Image.open(ruta_icono)
         icono_menu = ctk.CTkImage(imagen, size=(64, 64))
@@ -300,9 +300,9 @@ class AplicacionConPestanas(ctk.CTk):
                     suficiente_stock = False
                     break
 
-            if suficiente_stock:
-                self.crear_tarjeta(menu)
-                self.menus_creados.add(menu.nombre) #aqui guardamos los menus que se pueden crear
+            
+            self.crear_tarjeta(menu, suficiente_stock)
+            self.menus_creados.add(menu.nombre) #aqui guardamos los menus que se pueden crear
 
     def eliminar_menu(self): ####
         seleccionado = self.treeview_menu.selection()
@@ -391,10 +391,11 @@ class AplicacionConPestanas(ctk.CTk):
         fila = 0
         columna = num_tarjetas
 
+
         tarjeta = ctk.CTkFrame(
             tarjetas_frame,
             corner_radius=10,
-            border_width=1,
+            border_width=2,
             border_color="#4CAF50",
             width=64,
             height=140,
@@ -406,24 +407,12 @@ class AplicacionConPestanas(ctk.CTk):
         tarjeta.bind("<Enter>", lambda event: tarjeta.configure(border_color="#FF0000"))
         tarjeta.bind("<Leave>", lambda event: tarjeta.configure(border_color="#4CAF50"))
 
-        if getattr(menu, "icono_path", None):
-            try:
-                icono = self.cargar_icono_menu(menu.icono_path)
-                imagen_label = ctk.CTkLabel(
-                    tarjeta, image=icono, width=64, height=64, text="", bg_color="transparent"
-                )
-                imagen_label.image = icono
-                imagen_label.pack(anchor="center", pady=5, padx=10)
-                imagen_label.bind("<Button-1>", lambda event: self.tarjeta_click(event, menu))
-            except Exception as e:
-                print(f"No se pudo cargar la imagen '{menu.icono_path}': {e}")
-
         texto_label = ctk.CTkLabel(
             tarjeta,
-            text=f"{menu.nombre}",
-            text_color="black",
+            text=menu.nombre,
             font=("Helvetica", 12, "bold"),
-            bg_color="transparent",
+            wraplength=100,
+            justify="center",
         )
         texto_label.pack(anchor="center", pady=1)
         texto_label.bind("<Button-1>", lambda event: self.tarjeta_click(event, menu))

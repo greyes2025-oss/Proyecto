@@ -10,7 +10,7 @@ class Ingrediente:
     cantidad: float          
 
     def __post_init__(self):
-        self.cantidad = float(self.cantidad) #Convertir a float en caso de que venga como string
+        self.cantidad = int(self.cantidad) #Convertir a int en caso de que venga como string
 
         if self.cantidad < 0:
             raise ValueError("La cantidad no puede ser negativa")

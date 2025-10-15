@@ -36,6 +36,10 @@ class AplicacionConPestanas(ctk.CTk):
         self.tabview.pack(expand=True, fill="both", padx=10, pady=10)
 
         self.crear_pestanas()
+    
+    def normalizar_nombre(self,nombre: str) -> str:
+        return nombre.strip().title()
+
 
     def on_tab_change(self):
         selected_tab = self.tabview.get()
@@ -106,20 +110,21 @@ class AplicacionConPestanas(ctk.CTk):
         if self.df_csv is None:
             CTkMessagebox(title="Error", message="Primero debes cargar un archivo CSV.", icon="warning")
             return
-        #Verificamos que el CSV tenga las columnas necesarias
+
         if 'nombre' not in self.df_csv.columns or 'cantidad' not in self.df_csv.columns:
             CTkMessagebox(title="Error", message="El CSV debe tener columnas 'nombre' y 'cantidad'.", icon="warning")
             return
+
         for _, row in self.df_csv.iterrows():
-            nombre = str(row['nombre'])
-            cantidad = str(row['cantidad'])
-            unidad = str(row['unidad'])
+            nombre = self.normalizar_nombre(str(row['nombre']))
+            cantidad = int(row['cantidad'])
+            unidad = str(row['unidad']).strip().lower() if 'unidad' in row and row['unidad'] else None
 
-            self.stock.agregar(nombre, unidad, int(cantidad))###
-
+            self.stock.agregar(nombre, unidad, cantidad)
 
         CTkMessagebox(title="Stock Actualizado", message="Ingredientes agregados al stock correctamente.", icon="info")
-        self.actualizar_treeview()   
+        self.actualizar_treeview()
+
 
     def cargar_csv(self): ###
         #abirir un dialogo para seleccionar el archivo
@@ -268,30 +273,23 @@ class AplicacionConPestanas(ctk.CTk):
         suficiente_stock = True
 
         for ingrediente in menu.ingredientes:
-            stock = self.stock.ingredientes.get(ingrediente.nombre.lower())
+            stock = self.stock.ingredientes.get(self.normalizar_nombre(ingrediente.nombre))
             if not stock or stock.cantidad < ingrediente.cantidad:
                 suficiente_stock = False
                 break
 
         if suficiente_stock:
-            # Descontar ingredientes del stock
             for ingrediente in menu.ingredientes:
-                self.stock.descontar(ingrediente.nombre.lower(), ingrediente.cantidad)
-            #agregar al pedido
+                self.stock.descontar(self.normalizar_nombre(ingrediente.nombre), ingrediente.cantidad)
             self.pedido.agregar_menu(menu)
-
-            #actuazlizar vistas
             self.actualizar_treeview_pedido()
             Total = self.pedido.calcular_total()
             self.label_total.configure(text=f"Total: ${Total:.2f}")
-
         else:
-            CTkMessagebox(
-                title="Error", 
-                message="No hay suficiente stock para este menú.", 
-                icon="warning")
+            CTkMessagebox(title="Error", message="No hay suficiente stock para este menú.", icon="warning")
 
         self.actualizar_treeview()
+
             
 
     def cargar_icono_menu(self, ruta_icono):
@@ -466,28 +464,20 @@ class AplicacionConPestanas(ctk.CTk):
         self.entry_cantidad.delete(0, 'end')
         self.actualizar_treeview()
 
+
     
     def eliminar_ingrediente(self):
         seleccionado = self.tree.focus()
         if not seleccionado:
             messagebox.showwarning("Sin selección", "Por favor, selecciona un ingrediente de la tabla para eliminar.")
             return
-    
-    # Obtiene el nombre del ingrediente de la fila seleccionada
-        nombre_ingrediente = self.tree.item(seleccionado)['values'][0]
-    
-        if messagebox.askyesno("Confirmar", f"¿Estás seguro de que quieres eliminar '{nombre_ingrediente}'?"):
-        
-            self.stock.eliminar(nombre_ingrediente)
-        
-            self.actualizar_treeview()
-    
-    # Obtiene el nombre del ingrediente de la fila seleccionada
-            nombre_ingrediente = self.tree.item(seleccionado)['values'][0]
-    
+
+        nombre_ingrediente = self.normalizar_nombre(self.tree.item(seleccionado)['values'][0])
+
         if messagebox.askyesno("Confirmar", f"¿Estás seguro de que quieres eliminar '{nombre_ingrediente}'?"):
             self.stock.eliminar(nombre_ingrediente)
             self.actualizar_treeview()
+
 
     def actualizar_treeview(self):
     # Limpia la tabla de cualquier dato antiguo

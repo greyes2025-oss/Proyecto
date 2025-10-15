@@ -19,13 +19,6 @@ def create_menu_pdf(
     color_fila_par=(245, 247, 250),  
     color_fila_impar=(255, 255, 255) 
 ) -> str:
-    """
-    Genera un PDF de la carta solo con Nombre y Precio, con estilo:
-    - Banner de título con color
-    - Encabezado de tabla coloreado
-    - Filas 'zebra'
-    - Precios alineados a la derecha
-    """
 
     margen = 12
     col_w_nombre = 120

@@ -37,8 +37,31 @@ class AplicacionConPestanas(ctk.CTk):
 
         self.crear_pestanas()
     
-    def normalizar_nombre(self,nombre: str) -> str:
+    def normalizar_nombre(self,nombre: str) -> str:#############
         return nombre.strip().title()
+    
+    def actualizar_menus_disponibles(self):
+    # Limpiar tarjetas existentes
+        for widget in self.tarjetas_frame.winfo_children():
+            widget.destroy()
+
+        self.menus_creados.clear()
+
+        for menu in self.menus:
+            suficiente_stock = True
+            for ingrediente in menu.ingredientes:
+                stock = self.stock.ingredientes.get(self.normalizar_nombre(ingrediente.nombre))
+                if not stock or stock.cantidad < ingrediente.cantidad:
+                    suficiente_stock = False
+                    break
+
+            if suficiente_stock:
+                self.crear_tarjeta(menu, True)
+                self.menus_creados.add(menu.nombre)
+            else:
+            # Mensaje en la terminal
+                print(f"No hay suficientes ingredientes para preparar el menú: '{menu.nombre}'")
+
 
     def on_tab_change(self):
         selected_tab = self.tabview.get()
@@ -52,9 +75,9 @@ class AplicacionConPestanas(ctk.CTk):
             self.actualizar_treeview_pedido()
             self.cargar_tarjetas_pedido() 
             print('pedido')
-        if selected_tab == "Carta restorante":
+        if selected_tab == "Carta restaurante":
             self.actualizar_treeview()
-            print('Carta restorante')
+            print('Carta restaurante')
         if selected_tab == "Boleta":
             self.actualizar_treeview()
             print('Boleta')
@@ -62,7 +85,7 @@ class AplicacionConPestanas(ctk.CTk):
     def crear_pestanas(self):
         self.tab3 = self.tabview.add("carga de ingredientes")  
         self.tab1 = self.tabview.add("Stock")
-        self.tab4 = self.tabview.add("Carta restorante")  
+        self.tab4 = self.tabview.add("Carta restaurante")  
         self.tab2 = self.tabview.add("Pedido")
         self.tab5 = self.tabview.add("Boleta")
         
@@ -73,16 +96,23 @@ class AplicacionConPestanas(ctk.CTk):
         self._configurar_pestana_ver_boleta()
 
     def cargar_tarjetas_pedido(self):
-        #limpiar tarjetas anteriores
-        for u in tarjetas_frame.winfo_children():
+    # Limpiar tarjetas
+        for u in self.tarjetas_frame.winfo_children():
             u.destroy()
-
         self.menus_creados.clear()
 
-        #crear tarjetas para cada menu
+    # Crear tarjetas para cada menú con stock suficiente
         for menu in self.menus:
-            self.crear_tarjeta(menu, True)
-            self.menus_creados.add(menu.nombre)
+            suficiente_stock = True
+            for ingrediente in menu.ingredientes:
+                stock = self.stock.ingredientes.get(self.normalizar_nombre(ingrediente.nombre))
+                if not stock or stock.cantidad < ingrediente.cantidad:
+                    suficiente_stock = False
+                    break
+            if suficiente_stock:
+                self.crear_tarjeta(menu, True)
+                self.menus_creados.add(menu.nombre)
+
 
     def configurar_pestana3(self):
         label = ctk.CTkLabel(self.tab3, text="Carga de archivo CSV")
@@ -314,43 +344,45 @@ class AplicacionConPestanas(ctk.CTk):
         self.tree.heading("Cantidad", text="Cantidad")
         self.tree.pack(expand=True, fill="both", padx=10, pady=10)
 
-        self.boton_generar_menu = ctk.CTkButton(frame_treeview, text="Generar Menú", command=self.generar_menus)
+        self.boton_generar_menu = ctk.CTkButton(frame_treeview, text="Generar Menú", command=self.actualizar_menus_disponibles)
         self.boton_generar_menu.pack(pady=10)
 
     def tarjeta_click(self, event, menu):
         suficiente_stock = True
-
         for ingrediente in menu.ingredientes:
             stock = self.stock.ingredientes.get(self.normalizar_nombre(ingrediente.nombre))
             if not stock or stock.cantidad < ingrediente.cantidad:
                 suficiente_stock = False
                 break
 
-        if suficiente_stock:
-        # Descontar ingredientes del stock por cada menú agregado
-            for ingrediente in menu.ingredientes:
-                self.stock.descontar(self.normalizar_nombre(ingrediente.nombre), ingrediente.cantidad)
-        
-        # Agregar al pedido sumando cantidades si ya existe
-            for m in self.pedido.menus:
-                if m.nombre == menu.nombre:
-                    m.cantidad += 1
-                    break
-            else:
-                menu_copy = CrearMenu(
-                    nombre=menu.nombre,
-                    ingredientes=menu.ingredientes,
-                    precio=menu.precio,
-                    icono_path=menu.icono_path,
-                    cantidad=1
-                )
-                self.pedido.menus.append(menu_copy)
+        if not suficiente_stock:
+            CTkMessagebox(title="Stock insuficiente", message=f"No hay suficientes ingredientes para '{menu.nombre}'", icon="warning")
+            return
 
-        # Actualizar interfaz
-            self.actualizar_treeview_pedido()
-            Total = self.pedido.calcular_total()
-            self.label_total.configure(text=f"Total: ${Total:.2f}")
-            self.actualizar_treeview()  # actualizar stock
+    # Descontar ingredientes
+        for ingrediente in menu.ingredientes:
+            self.stock.descontar(self.normalizar_nombre(ingrediente.nombre), ingrediente.cantidad)
+
+    # Agregar menú al pedido
+        for m in self.pedido.menus:
+            if m.nombre == menu.nombre:
+                m.cantidad += 1
+                break
+        else:   
+            menu_copy = CrearMenu(
+                nombre=menu.nombre,
+                ingredientes=menu.ingredientes,
+                precio=menu.precio,
+                icono_path=menu.icono_path,
+                cantidad=1
+            )
+            self.pedido.menus.append(menu_copy)
+
+    # Actualizar interfaz
+        self.actualizar_treeview_pedido()   # Actualiza tabla de pedido
+        total = self.pedido.calcular_total()
+        self.label_total.configure(text=f"Total: ${total:.2f}")
+        self.actualizar_treeview()           # Actualiza stock
 
 
             
@@ -360,16 +392,42 @@ class AplicacionConPestanas(ctk.CTk):
         return icono_menu
     
     def generar_menus(self):
-    # Llama al metodo .esta_disponible() de cada menú
-        disponibles = [m.nombre for m in self.menus if m.esta_disponible(self.stock)]
-    
-        if not disponibles:
-            mensaje = "No hay suficientes ingredientes para preparar ningun menú."
-        else:
-            mensaje = "Con el stock actual se puede preparar:\n\n- " + "\n- ".join(disponibles)
-    
-    #ventana emergente
-        messagebox.showinfo("Menús Disponibles", mensaje)
+        self.pedido.menus.clear()  # Limpiar pedido antes de generar
+
+        for menu in self.menus:
+            suficiente_stock = True
+            ingredientes_faltantes = []
+
+            for ingrediente in menu.ingredientes:
+                stock = self.stock.ingredientes.get(self.normalizar_nombre(ingrediente.nombre))
+                if not stock or stock.cantidad < ingrediente.cantidad:
+                    suficiente_stock = False
+                    faltante = ingrediente.cantidad if not stock else ingrediente.cantidad - stock.cantidad
+                    ingredientes_faltantes.append((ingrediente.nombre, faltante))
+
+            if suficiente_stock:
+            # Descontar ingredientes
+                for ingrediente in menu.ingredientes:
+                    self.stock.descontar(self.normalizar_nombre(ingrediente.nombre), ingrediente.cantidad)
+            
+            # Agregar menú al pedido
+                self.pedido.menus.append(CrearMenu(
+                    nombre=menu.nombre,
+                    ingredientes=menu.ingredientes,
+                    precio=menu.precio,
+                    icono_path=menu.icono_path,
+                    cantidad=1
+                ))
+            else:
+                detalles = ", ".join([f"{n} ({c} faltante)" for n, c in ingredientes_faltantes])
+                print(f"No hay suficientes ingredientes para preparar '{menu.nombre}'. Faltan: {detalles}")
+
+    # Actualizar la interfaz
+        self.actualizar_treeview()
+        self.actualizar_treeview_pedido()
+        total = self.pedido.calcular_total()
+        self.label_total.configure(text=f"Total: ${total:.2f}")
+
 
     def eliminar_menu(self):
         seleccionado = self.treeview_menu.selection()
@@ -408,9 +466,8 @@ class AplicacionConPestanas(ctk.CTk):
         frame_intermedio = ctk.CTkFrame(self.tab2)
         frame_intermedio.pack(side="top", fill="x", padx=10, pady=5)
 
-        global tarjetas_frame
-        tarjetas_frame = ctk.CTkFrame(frame_superior)
-        tarjetas_frame.pack(expand=True, fill="both", padx=10, pady=10)
+        self.tarjetas_frame = ctk.CTkFrame(frame_superior)
+        self.tarjetas_frame.pack(expand=True, fill="both", padx=10, pady=10)
 
         self.boton_eliminar_menu = ctk.CTkButton(frame_intermedio, text="Eliminar Menú", command=self.eliminar_menu)
         self.boton_eliminar_menu.pack(side="right", padx=10)
@@ -436,7 +493,7 @@ class AplicacionConPestanas(ctk.CTk):
         columna = num_tarjetas
 
         tarjeta = ctk.CTkFrame(
-            tarjetas_frame,
+            self.tarjetas_frame,
             corner_radius=10,
             border_width=2,
             border_color="#4CAF50",

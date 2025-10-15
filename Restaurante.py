@@ -1,4 +1,4 @@
-from ElementoMenu import CrearMenu 
+from Menu import CrearMenu 
 import customtkinter as ctk #importar customtkinter
 from tkinter import ttk, Toplevel, Label, messagebox #importar ttk, Toplevel, Label y messagebox de tkinter para la interfaz grafica
 from Ingrediente import Ingrediente 
@@ -7,11 +7,11 @@ import re #importar re para expresiones regulares para validar entradas
 from PIL import Image #importar PIL para manejar imagenes
 from CTkMessagebox import CTkMessagebox # importar CTkMessagebox para mostrar mensajes personalizados
 from Pedido import Pedido #importar la clase Pedido
-from BoletaFacade import BoletaFacade 
+from Boleta import BoletaFacade 
 import pandas as pd 
 from tkinter import filedialog #importar filedialog para abrir dialogos de archivos
 from Menu_catalog import get_default_menus #importar la funcion para obtener menus por defecto
-from menu_pdf import create_menu_pdf #importar la funcion para crear el pdf del menu
+from Menupdf import create_menu_pdf #importar la funcion para crear el pdf del menu
 from ctk_pdf_viewer import CTkPDFViewer #importar el visor de pdf
 import os #importar os para manejar rutas de archivos
 from tkinter.font import nametofont #importar nametofont para manejar fuentes
@@ -115,11 +115,11 @@ class AplicacionConPestanas(ctk.CTk):
                 self.menus_creados.add(menu.nombre)
 
 
-    def configurar_pestana3(self): 
+    def configurar_pestana3(self): #----------------------------------------------------------
         label = ctk.CTkLabel(self.tab3, text="Carga de archivo CSV") 
         label.pack(pady=20)
         #boton de agregar csv
-        boton_cargar_csv = ctk.CTkButton(self.tab3, text="Cargar CSV", fg_color="#1976D2", text_color="white",command=self.cargar_csv)
+        boton_cargar_csv = ctk.CTkButton(self.tab3, text="Cargar CSV", fg_color="#1976D2", text_color="white",command=self.cargar_csv) 
 
         boton_cargar_csv.pack(pady=10) 
 

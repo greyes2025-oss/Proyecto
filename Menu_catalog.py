@@ -1,6 +1,6 @@
 # menu_catalog.py
 from typing import List
-from ElementoMenu import CrearMenu
+from Menu import CrearMenu
 from Ingrediente import Ingrediente
 from IMenu import IMenu
 

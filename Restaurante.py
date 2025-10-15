@@ -40,7 +40,6 @@ class AplicacionConPestanas(ctk.CTk):
     def normalizar_nombre(self,nombre: str) -> str:
         return nombre.strip().title()
 
-
     def on_tab_change(self):
         selected_tab = self.tabview.get()
 
@@ -51,17 +50,15 @@ class AplicacionConPestanas(ctk.CTk):
         if selected_tab == "Pedido":
             self.actualizar_treeview()
             self.actualizar_treeview_pedido()
+            self.cargar_tarjetas_pedido() 
             print('pedido')
         if selected_tab == "Carta restorante":
             self.actualizar_treeview()
             print('Carta restorante')
-            self.actualizar_treeview_stock()
         if selected_tab == "Boleta":
             self.actualizar_treeview()
             print('Boleta')
-            self.actualizar_treeview_stock()
-
-
+        
     def crear_pestanas(self):
         self.tab3 = self.tabview.add("carga de ingredientes")  
         self.tab1 = self.tabview.add("Stock")

@@ -37,11 +37,8 @@ class AplicacionConPestanas(ctk.CTk):
 
         self.crear_pestanas()
     
-<<<<<<< Updated upstream
-    def normalizar_nombre(self,nombre: str) -> str:
-=======
+
     def normalizar_nombre(self,nombre: str) -> str:#############---------------------------------------------
->>>>>>> Stashed changes
         return nombre.strip().title()
     
     def actualizar_menus_disponibles(self): #----------
@@ -281,8 +278,6 @@ class AplicacionConPestanas(ctk.CTk):
             print("ERROR generando boleta:", e)
             CTkMessagebox(title="Error", message=f"No se pudo generar la boleta.\n{e}", icon="warning") #mensaje de error
 
-<<<<<<< Updated upstream
-=======
     def mostrar_boleta(self): #---------------------------------------
         if not hasattr(self, "ruta_boleta") or not os.path.exists(self.ruta_boleta): # Verifica si la boleta fue generada
             CTkMessagebox(title="Error", message="No se ha generado la boleta aún.", icon="warning")
@@ -298,8 +293,6 @@ class AplicacionConPestanas(ctk.CTk):
         self.pdf_viewer_boleta = CTkPDFViewer(self.pdf_frame_boleta, file=self.ruta_boleta) #crea el visor con la ruta de la boleta
         self.pdf_viewer_boleta.pack(expand=True, fill="both") #muestra el visor
 
->>>>>>> Stashed changes
-   
 
     def configurar_pestana1(self):
         # Dividir la Pestaña 1 en dos frames
@@ -522,19 +515,11 @@ class AplicacionConPestanas(ctk.CTk):
         )
         texto_label.pack(anchor="center", pady=1) # sirve para centrar el texto en la tarjeta
 
-<<<<<<< Updated upstream
-    #------------- Función para que todos los widgets sean clickeables
-        def bind_click_recursivo(widget, callback):
-            widget.bind("<Button-1>", callback)
-            for child in widget.winfo_children():
-                bind_click_recursivo(child, callback)
-=======
     #------------- Función sean clickeables
         def bind_click_recursivo(widget, callback): #funcion para hacer que toda la tarjeta sea clickeable
             widget.bind("<Button-1>", callback) #asocia el click a la tarjeta
             for child in widget.winfo_children(): #asocia el click a los hijos de la tarjeta
                 bind_click_recursivo(child, callback) #asocia el click a los hijos de los hijos de la tarjeta
->>>>>>> Stashed changes
 
     # Asociar click a toda la tarjeta
         bind_click_recursivo(tarjeta, lambda event: self.tarjeta_click(event, menu))

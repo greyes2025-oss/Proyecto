@@ -276,19 +276,33 @@ class AplicacionConPestanas(ctk.CTk):
                 break
 
         if suficiente_stock:
+        # Descontar ingredientes del stock por cada menú agregado
             for ingrediente in menu.ingredientes:
                 self.stock.descontar(self.normalizar_nombre(ingrediente.nombre), ingrediente.cantidad)
-            self.pedido.agregar_menu(menu)
+        
+        # Agregar al pedido sumando cantidades si ya existe
+            for m in self.pedido.menus:
+                if m.nombre == menu.nombre:
+                    m.cantidad += 1
+                    break
+            else:
+                menu_copy = CrearMenu(
+                    nombre=menu.nombre,
+                    ingredientes=menu.ingredientes,
+                    precio=menu.precio,
+                    icono_path=menu.icono_path,
+                    cantidad=1
+                )
+                self.pedido.menus.append(menu_copy)
+
+        # Actualizar interfaz
             self.actualizar_treeview_pedido()
             Total = self.pedido.calcular_total()
             self.label_total.configure(text=f"Total: ${Total:.2f}")
-        else:
-            CTkMessagebox(title="Error", message="No hay suficiente stock para este menú.", icon="warning")
+            self.actualizar_treeview()  # actualizar stock
 
-        self.actualizar_treeview()
 
             
-
     def cargar_icono_menu(self, ruta_icono):
         imagen = Image.open(ruta_icono)
         icono_menu = ctk.CTkImage(imagen, size=(64, 64))
@@ -307,28 +321,35 @@ class AplicacionConPestanas(ctk.CTk):
     #ventana emergente
         messagebox.showinfo("Menús Disponibles", mensaje)
 
-    def eliminar_menu(self): ####
+    def eliminar_menu(self):
         seleccionado = self.treeview_menu.selection()
         if not seleccionado:
-            CTkMessagebox(title="Error", message="Selecciona un menú para eliminar.", icon="warning")
-            return
+            return  # Si no hay selección, no hace nada
 
-        for item in seleccionado: #
-            nombre_menu = self.treeview_menu.item(item, "values")[0] #
+        for item in seleccionado:
+            nombre_menu = self.treeview_menu.item(item, "values")[0]
 
-            #devolver ingredientes al stock
+        # Buscar el menu en el pedido
             for menu in self.pedido.menus:
                 if menu.nombre == nombre_menu:
+                # Devolver todos los ingredientes según la cantidad del menu
                     for ingrediente_necesario in menu.ingredientes:
-                        self.stock.agregar(ingrediente_necesario.nombre, ingrediente_necesario.unidad, ingrediente_necesario.cantidad)
+                        total_a_devolver = ingrediente_necesario.cantidad * menu.cantidad
+                        self.stock.agregar(
+                            ingrediente_necesario.nombre,
+                            ingrediente_necesario.unidad,
+                            total_a_devolver
+                        )
+                # Eliminar completamente el menú del pedido
+                    self.pedido.menus.remove(menu)
                     break
-         
-            self.pedido.eliminar_menu(nombre_menu) #eliminar del pedido
 
+    # Actualizar interfaz
         self.actualizar_treeview_pedido()
         Total = self.pedido.calcular_total()
         self.label_total.configure(text=f"Total: ${Total:.2f}")
-        self.actualizar_treeview() # para ver el stock actualizado
+        self.actualizar_treeview()  # Actualizar stock
+
 
     def generar_boleta(self):###
         if not self.pedido.menus:

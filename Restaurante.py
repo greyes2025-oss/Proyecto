@@ -208,76 +208,57 @@ class AplicacionConPestanas(ctk.CTk):
         contenedor = ctk.CTkFrame(self.tab5)
         contenedor.pack(expand=True, fill="both", padx=10, pady=10)
 
+    #  solo muestra la boleta ya generada
         boton_boleta = ctk.CTkButton(
             contenedor,
-            text="Generar y Mostrar Boleta (PDF)",
-            command=self.generar_boleta  # el mismo metodo generara y mostrara la boleta
+            text="Mostrar Boleta",
+            command=self.mostrar_boleta  # nueva funcion para mostrar PDF
         )
         boton_boleta.pack(pady=10)
 
         self.pdf_frame_boleta = ctk.CTkFrame(contenedor)
         self.pdf_frame_boleta.pack(expand=True, fill="both", padx=10, pady=10)
 
-    # inicializamos la referencia a None 
+    # Inicializamos referencia a None
         self.pdf_viewer_boleta = None
 
         
 #----------------------------------------------------------------------------------------------------------
     def generar_boleta(self):
-    # Validacion: debe haber menus en el pedido
         if not self.pedido.menus:
             CTkMessagebox(title="Error", message="No hay menús en el pedido para generar una boleta.", icon="warning")
             return
 
         try:
-        # Generar boleta (BoletaFacade puede ser una clase con metodo generar_boleta)
             boleta = BoletaFacade(self.pedido)
-            resultado = boleta.generar_boleta()  # puede devolver ruta relativa, absoluta, o nombre
+            ruta = boleta.generar_boleta()  # genera el PDF
 
-        # Normalizar ruta resultante
-            if not resultado:
-                raise RuntimeError("BoletaFacade no devolvió ruta de archivo.")
-            ruta = resultado
-        # Si la ruta no es absoluta, conviértela
-            if not os.path.isabs(ruta):
-                ruta = os.path.abspath(ruta)
+        # Guardamos la ruta para mostrar luego
+            self.ruta_boleta = os.path.abspath(ruta)
 
-        # Guardamos la ruta para uso futuro
-            self.ruta_boleta = ruta
-
-        # Mostrar mensaje de exito en terminal y con ventana (opcional)
-            print(f"Boleta generada en: {self.ruta_boleta}")
             CTkMessagebox(title="Éxito", message="Boleta generada correctamente.", icon="info")
-
-        # Si ya hay un PDF cargado en el viewer, eliminarlo primero
-            try:
-                if hasattr(self, "pdf_viewer_boleta") and self.pdf_viewer_boleta is not None:
-                    self.pdf_viewer_boleta.pack_forget()
-                    self.pdf_viewer_boleta.destroy()
-                    self.pdf_viewer_boleta = None
-            except Exception:
-                pass
-
-        # Verificar que el archivo exista
-            if not os.path.exists(self.ruta_boleta):
-                raise FileNotFoundError(f"Archivo no encontrado: {self.ruta_boleta}")
-
-        # Crear y mostrar el visor PDF dentro de self.pdf_frame_boleta
-            self.pdf_viewer_boleta = CTkPDFViewer(self.pdf_frame_boleta, file=self.ruta_boleta)
-            self.pdf_viewer_boleta.pack(expand=True, fill="both")
-
-        # Asegurar que la pestaña Boleta quede visible (opcional)
-            try:
-                self.tabview.set("Boleta")
-            except Exception:
-                pass
+            print(f"Boleta generada en: {self.ruta_boleta}")
 
         except Exception as e:
-        # Mostrar error en terminal y con mensaje
-            print("ERROR generando/mostrando boleta:", e)
-            CTkMessagebox(title="Error", message=f"No se pudo generar/mostrar la boleta.\n{e}", icon="warning")
+            print("ERROR generando boleta:", e)
+            CTkMessagebox(title="Error", message=f"No se pudo generar la boleta.\n{e}", icon="warning")
 
+    def mostrar_boleta(self):
+        if not hasattr(self, "ruta_boleta") or not os.path.exists(self.ruta_boleta):
+            CTkMessagebox(title="Error", message="No se ha generado la boleta aún.", icon="warning")
+            return
 
+    # Eliminar PDF previo si existe
+        if self.pdf_viewer_boleta is not None:
+            self.pdf_viewer_boleta.pack_forget()
+            self.pdf_viewer_boleta.destroy()
+            self.pdf_viewer_boleta = None
+
+    # Mostrar el PDF
+        self.pdf_viewer_boleta = CTkPDFViewer(self.pdf_frame_boleta, file=self.ruta_boleta)
+        self.pdf_viewer_boleta.pack(expand=True, fill="both")
+
+   
     def ver_boleta(self):
         if not hasattr(self, "ruta_boleta") or not os.path.exists(self.ruta_boleta):
             CTkMessagebox(title="Error", message="No se ha generado la boleta aún.", icon="warning")
@@ -454,7 +435,6 @@ class AplicacionConPestanas(ctk.CTk):
         fila = 0
         columna = num_tarjetas
 
-
         tarjeta = ctk.CTkFrame(
             tarjetas_frame,
             corner_radius=10,
@@ -466,27 +446,36 @@ class AplicacionConPestanas(ctk.CTk):
         )
         tarjeta.grid(row=fila, column=columna, padx=15, pady=15, sticky="nsew")
 
-        tarjeta.bind("<Button-1>", lambda event: self.tarjeta_click(event, menu))
+       # Cambiar color del borde al pasar el mouse
         tarjeta.bind("<Enter>", lambda event: tarjeta.configure(border_color="#FF0000"))
         tarjeta.bind("<Leave>", lambda event: tarjeta.configure(border_color="#4CAF50"))
 
-#-------------
+    #------------- Imagen del menú
         if menu.icono_path:
             icono = self.cargar_icono_menu(menu.icono_path)
             label_icono = ctk.CTkLabel(tarjeta, image=icono, text="")
-            label_icono.image = icono  # Mantener una referencia para evitar que se elimine
+            label_icono.image = icono  # Mantener referencia
             label_icono.pack(pady=5)
 
-        #label muestra el nombre del menu
-        texto_label = ctk.CTkLabel( # hace que el texto se ajuste al ancho de la tarjeta
+    #------------- Texto del menú
+        texto_label = ctk.CTkLabel(
             tarjeta,
             text=menu.nombre,
-            font=("Helvetica", 12, "bold"), # negrita
-            wraplength=100, #ajusta el texto al ancho de la tarjeta
+            font=("Helvetica", 12, "bold"),
+            wraplength=100,
             justify="center",
         )
         texto_label.pack(anchor="center", pady=1)
-        texto_label.bind("<Button-1>", lambda event: self.tarjeta_click(event, menu)) #hace que el label tambien sea clickeable
+
+    #------------- Función para que todos los widgets hijos sean clickeables
+        def bind_click_recursivo(widget, callback):
+            widget.bind("<Button-1>", callback)
+            for child in widget.winfo_children():
+                bind_click_recursivo(child, callback)
+
+    # Asociar click a toda la tarjeta y sus hijos
+        bind_click_recursivo(tarjeta, lambda event: self.tarjeta_click(event, menu))
+
 
     def validar_nombre(self, nombre):
         if re.match(r"^[a-zA-Z\s]+$", nombre):

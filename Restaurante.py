@@ -207,29 +207,76 @@ class AplicacionConPestanas(ctk.CTk):
     def _configurar_pestana_ver_boleta(self):
         contenedor = ctk.CTkFrame(self.tab5)
         contenedor.pack(expand=True, fill="both", padx=10, pady=10)
-    
+
         boton_boleta = ctk.CTkButton(
             contenedor,
-            text="Mostrar Boleta (PDF)",
-            command=self.generar_boleta ## se cambio por generar_boleta(
+            text="Generar y Mostrar Boleta (PDF)",
+            command=self.generar_boleta  # el mismo metodo generara y mostrara la boleta
         )
         boton_boleta.pack(pady=10)
-    
+
         self.pdf_frame_boleta = ctk.CTkFrame(contenedor)
         self.pdf_frame_boleta.pack(expand=True, fill="both", padx=10, pady=10)
-    
+
+    # inicializamos la referencia a None 
         self.pdf_viewer_boleta = None
+
         
 #----------------------------------------------------------------------------------------------------------
     def generar_boleta(self):
+    # Validacion: debe haber menus en el pedido
         if not self.pedido.menus:
             CTkMessagebox(title="Error", message="No hay menús en el pedido para generar una boleta.", icon="warning")
             return
 
-        boleta = BoletaFacade(self.pedido)
-        pdf_path = os.path.abspath(boleta.generar_boleta())  # genera y guarda
-        self.ruta_boleta = pdf_path  # guardamos la ruta para luego mostrar
-        CTkMessagebox(title="Éxito", message="Boleta generada correctamente.", icon="info")
+        try:
+        # Generar boleta (BoletaFacade puede ser una clase con metodo generar_boleta)
+            boleta = BoletaFacade(self.pedido)
+            resultado = boleta.generar_boleta()  # puede devolver ruta relativa, absoluta, o nombre
+
+        # Normalizar ruta resultante
+            if not resultado:
+                raise RuntimeError("BoletaFacade no devolvió ruta de archivo.")
+            ruta = resultado
+        # Si la ruta no es absoluta, conviértela
+            if not os.path.isabs(ruta):
+                ruta = os.path.abspath(ruta)
+
+        # Guardamos la ruta para uso futuro
+            self.ruta_boleta = ruta
+
+        # Mostrar mensaje de exito en terminal y con ventana (opcional)
+            print(f"Boleta generada en: {self.ruta_boleta}")
+            CTkMessagebox(title="Éxito", message="Boleta generada correctamente.", icon="info")
+
+        # Si ya hay un PDF cargado en el viewer, eliminarlo primero
+            try:
+                if hasattr(self, "pdf_viewer_boleta") and self.pdf_viewer_boleta is not None:
+                    self.pdf_viewer_boleta.pack_forget()
+                    self.pdf_viewer_boleta.destroy()
+                    self.pdf_viewer_boleta = None
+            except Exception:
+                pass
+
+        # Verificar que el archivo exista
+            if not os.path.exists(self.ruta_boleta):
+                raise FileNotFoundError(f"Archivo no encontrado: {self.ruta_boleta}")
+
+        # Crear y mostrar el visor PDF dentro de self.pdf_frame_boleta
+            self.pdf_viewer_boleta = CTkPDFViewer(self.pdf_frame_boleta, file=self.ruta_boleta)
+            self.pdf_viewer_boleta.pack(expand=True, fill="both")
+
+        # Asegurar que la pestaña Boleta quede visible (opcional)
+            try:
+                self.tabview.set("Boleta")
+            except Exception:
+                pass
+
+        except Exception as e:
+        # Mostrar error en terminal y con mensaje
+            print("ERROR generando/mostrando boleta:", e)
+            CTkMessagebox(title="Error", message=f"No se pudo generar/mostrar la boleta.\n{e}", icon="warning")
+
 
     def ver_boleta(self):
         if not hasattr(self, "ruta_boleta") or not os.path.exists(self.ruta_boleta):

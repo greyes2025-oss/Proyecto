@@ -410,15 +410,23 @@ class AplicacionConPestanas(ctk.CTk):
         tarjeta.bind("<Enter>", lambda event: tarjeta.configure(border_color="#FF0000"))
         tarjeta.bind("<Leave>", lambda event: tarjeta.configure(border_color="#4CAF50"))
 
-        texto_label = ctk.CTkLabel(
+#-------------
+        if menu.icono_path:
+            icono = self.cargar_icono_menu(menu.icono_path)
+            label_icono = ctk.CTkLabel(tarjeta, image=icono, text="")
+            label_icono.image = icono  # Mantener una referencia para evitar que se elimine
+            label_icono.pack(pady=5)
+
+        #label muestra el nombre del menu
+        texto_label = ctk.CTkLabel( # hace que el texto se ajuste al ancho de la tarjeta
             tarjeta,
             text=menu.nombre,
-            font=("Helvetica", 12, "bold"),
-            wraplength=100,
+            font=("Helvetica", 12, "bold"), # negrita
+            wraplength=100, #ajusta el texto al ancho de la tarjeta
             justify="center",
         )
         texto_label.pack(anchor="center", pady=1)
-        texto_label.bind("<Button-1>", lambda event: self.tarjeta_click(event, menu))
+        texto_label.bind("<Button-1>", lambda event: self.tarjeta_click(event, menu)) #hace que el label tambien sea clickeable
 
     def validar_nombre(self, nombre):
         if re.match(r"^[a-zA-Z\s]+$", nombre):

@@ -8,7 +8,7 @@ from IMenu import IMenu
 class CrearMenu(IMenu):
     nombre: str
     ingredientes: List[Ingrediente]
-    precio: float = 0.0
+    precio: int = 0.0
     icono_path: Optional[str] = None
     cantidad: int = field(default=0, compare=False)
 

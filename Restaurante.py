@@ -211,7 +211,7 @@ class AplicacionConPestanas(ctk.CTk):
         boton_boleta = ctk.CTkButton(
             contenedor,
             text="Mostrar Boleta (PDF)",
-            command=self.mostrar_boleta
+            command=self.generar_boleta ## se cambio por generar_boleta(
         )
         boton_boleta.pack(pady=10)
     
@@ -220,9 +220,32 @@ class AplicacionConPestanas(ctk.CTk):
     
         self.pdf_viewer_boleta = None
         
+#----------------------------------------------------------------------------------------------------------
+    def generar_boleta(self):
+        if not self.pedido.menus:
+            CTkMessagebox(title="Error", message="No hay menús en el pedido para generar una boleta.", icon="warning")
+            return
 
-    def mostrar_boleta(self):
-        pass
+        boleta = BoletaFacade(self.pedido)
+        pdf_path = os.path.abspath(boleta.generar_boleta())  # genera y guarda
+        self.ruta_boleta = pdf_path  # guardamos la ruta para luego mostrar
+        CTkMessagebox(title="Éxito", message="Boleta generada correctamente.", icon="info")
+
+    def ver_boleta(self):
+        if not hasattr(self, "ruta_boleta") or not os.path.exists(self.ruta_boleta):
+            CTkMessagebox(title="Error", message="No se ha generado la boleta aún.", icon="warning")
+            return
+
+    # Si ya hay un PDF cargado, eliminarlo
+        if hasattr(self, "pdf_viewer_boleta") and self.pdf_viewer_boleta is not None:
+            self.pdf_viewer_boleta.pack_forget()
+            self.pdf_viewer_boleta.destroy()
+            self.pdf_viewer_boleta = None
+
+    # Mostrar PDF
+        self.pdf_viewer_boleta = CTkPDFViewer(self.pdf_frame_boleta, file=self.ruta_boleta)
+        self.pdf_viewer_boleta.pack(expand=True, fill="both")
+
 
     def configurar_pestana1(self):
         # Dividir la Pestaña 1 en dos frames
@@ -293,7 +316,6 @@ class AplicacionConPestanas(ctk.CTk):
         imagen = Image.open(ruta_icono)
         icono_menu = ctk.CTkImage(imagen, size=(64, 64))
         return icono_menu
-#-----------------------------------------
     
     def generar_menus(self):
     # Llama al metodo .esta_disponible() de cada menú
@@ -329,36 +351,6 @@ class AplicacionConPestanas(ctk.CTk):
         Total = self.pedido.calcular_total()
         self.label_total.configure(text=f"Total: ${Total:.2f}")
         self.actualizar_treeview() # para ver el stock actualizado
-
-    def generar_boleta(self):###
-        if not self.pedido.menus:
-            CTkMessagebox(title="Error", message="No hay menús en el pedido para generar una boleta.", icon="warning")
-            return
-
-        try:
-            pdf_path = "boleta.pdf"
-            BoletaFacade.generar_boleta(self.pedido, pdf_path,
-                nombre_negocio="Restaurante",
-                direccion="Av. Siempre Viva 123",
-                telefono="+56 9 1234 5678",
-            )
-            # Mostrar la boleta en la pestaña de Boleta
-            if self.pdf_viewer_boleta is not None:
-                try:
-                    self.pdf_viewer_boleta.pack_forget() # Ocul
-                    self.pdf_viewer_boleta.destroy() # Des
-                except Exception:
-                    pass
-                self.pdf_viewer_boleta = None # Re
-
-            abs_pdf = os.path.abspath(pdf_path)
-            self.pdf_viewer_boleta = CTkPDFViewer(self.pdf_frame_boleta, file=abs_pdf)
-            self.pdf_viewer_boleta.pack(expand=True, fill="both")
-        
-        except Exception as e:
-            CTkMessagebox(title="Error", message=f"No se pudo generar/mostrar la boleta.\n{e}", icon="warning")
-
-            #-------------------------------------------------
 
     def configurar_pestana2(self):
         frame_superior = ctk.CTkFrame(self.tab2)

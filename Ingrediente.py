@@ -7,7 +7,7 @@ from typing import Optional
 class Ingrediente:
     nombre: str
     unidad: Optional[str]  
-    cantidad: float          
+    cantidad: int          
 
     def __post_init__(self):
         self.cantidad = int(self.cantidad) #Convertir a int en caso de que venga como string

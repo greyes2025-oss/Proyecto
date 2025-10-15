@@ -37,7 +37,7 @@ class AplicacionConPestanas(ctk.CTk):
 
         self.crear_pestanas()
     
-    def normalizar_nombre(self,nombre: str) -> str:#############
+    def normalizar_nombre(self,nombre: str) -> str:
         return nombre.strip().title()
     
     def actualizar_menus_disponibles(self):
@@ -272,21 +272,6 @@ class AplicacionConPestanas(ctk.CTk):
         except Exception as e:
             print("ERROR generando boleta:", e)
             CTkMessagebox(title="Error", message=f"No se pudo generar la boleta.\n{e}", icon="warning")
-
-    def mostrar_boleta(self):
-        if not hasattr(self, "ruta_boleta") or not os.path.exists(self.ruta_boleta):
-            CTkMessagebox(title="Error", message="No se ha generado la boleta aún.", icon="warning")
-            return
-
-    # Eliminar PDF previo si existe
-        if self.pdf_viewer_boleta is not None:
-            self.pdf_viewer_boleta.pack_forget()
-            self.pdf_viewer_boleta.destroy()
-            self.pdf_viewer_boleta = None
-
-    # Mostrar el PDF
-        self.pdf_viewer_boleta = CTkPDFViewer(self.pdf_frame_boleta, file=self.ruta_boleta)
-        self.pdf_viewer_boleta.pack(expand=True, fill="both")
 
    
     def ver_boleta(self):
@@ -524,13 +509,13 @@ class AplicacionConPestanas(ctk.CTk):
         )
         texto_label.pack(anchor="center", pady=1)
 
-    #------------- Función para que todos los widgets hijos sean clickeables
+    #------------- Función para que todos los widgets sean clickeables
         def bind_click_recursivo(widget, callback):
             widget.bind("<Button-1>", callback)
             for child in widget.winfo_children():
                 bind_click_recursivo(child, callback)
 
-    # Asociar click a toda la tarjeta y sus hijos
+    # Asociar click a toda la tarjeta
         bind_click_recursivo(tarjeta, lambda event: self.tarjeta_click(event, menu))
 
 

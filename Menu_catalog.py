@@ -15,6 +15,7 @@ def get_default_menus() -> List[IMenu]:
                 Ingrediente("Tomate","unid",1),
             ],
             precio=1800,
+            icono_path="IMG/completo.png"
         ),
         CrearMenu(
             "Hamburguesa",
@@ -24,6 +25,7 @@ def get_default_menus() -> List[IMenu]:
                 Ingrediente("Lamina de queso","unid",1),
             ],
             precio=3500,
+            icono_path="IMG/hamburguesa.png"
         ),
         CrearMenu(
             "Empanada",
@@ -33,6 +35,7 @@ def get_default_menus() -> List[IMenu]:
                 Ingrediente("Masa de empanada","unid",1),
             ],
             precio=1000,
+            icono_path="IMG/empanada.png"
         ),
         CrearMenu(
             "Papas fritas",
@@ -40,21 +43,26 @@ def get_default_menus() -> List[IMenu]:
                 Ingrediente("Papas","unid", 5),
                 
             ],
-            precio=500
+            precio=500,
+            icono_path="IMG/papasfritas.png"
+
         ),
         CrearMenu(
             "Pepsi",
             [
                 Ingrediente("Pepsi","unid", 1),
             ],
-            precio=1100
+            precio=1100,
+            icono_path="IMG/pepsi.png"
+            
         ),
         CrearMenu(
             "Coca cola",
             [
                 Ingrediente("Coca cola","unid", 1),
             ],
-            precio=1200
+            precio=1200,
+            icono_path="IMG/cocacola.png"
         ),
         CrearMenu(
             "Panqueques",
@@ -63,7 +71,8 @@ def get_default_menus() -> List[IMenu]:
                 Ingrediente("Manjar","unid", 1),
                 Ingrediente("Azucar flor","unid",1),
             ],
-            precio=2000
+            precio=2000,
+            icono_path="IMG/panqueques.png"
         ),
         CrearMenu(
             "Pollo frito",
@@ -72,7 +81,8 @@ def get_default_menus() -> List[IMenu]:
                 Ingrediente("Harina","unid", 1),
                 Ingrediente("Aceite","unid",1),
             ],
-            precio=2800
+            precio=2800,
+            icono_path="IMG/pollo frito.png"
         ),
         CrearMenu(
             "Ensalada Mixta",
@@ -81,7 +91,8 @@ def get_default_menus() -> List[IMenu]:
                 Ingrediente("Tomate","unid", 1),
                 Ingrediente("Zanahoria","unid",1),
             ],
-            precio=1500
+            precio=1500,
+            icono_path="IMG/ensaladamixta.png"
         ),
         CrearMenu(
             "Chorrillana",
@@ -91,6 +102,18 @@ def get_default_menus() -> List[IMenu]:
                 Ingrediente("Papas","unid", 3),
                 Ingrediente("Cebolla","unid",1),
             ],
-            precio=3500
-        )
+            precio=3500,
+            icono_path="IMG/chorrillana.png"
+        ),
+        CrearMenu(
+            "empanada",
+            [
+                Ingrediente("Carne","unid", 1),
+                Ingrediente("Cebolla","unid", 1),
+                Ingrediente("Masa de empanada","unid",1),
+            ],
+            precio=1000,
+            icono_path="IMG/empanada.png"
+        ),
+
     ]

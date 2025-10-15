@@ -62,7 +62,7 @@ class BoletaFacade:
 
         # Mensaje final
         pdf.set_font("Arial", 'I', 10)
-        pdf.cell(0, 10, "Gracias por su compra. Para consultas llámenos al +56 9 777 5678.", 0, 1, 'C')
+        pdf.cell(0, 10, "Gracias por su compra. Para consultas llámenos al +56 9 1234 5678.", 0, 1, 'C')
         pdf.cell(0, 10, "Los productos adquiridos no tienen garantía.", 0, 1, 'C')
 
         pdf_filename = "boleta.pdf"

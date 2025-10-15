@@ -92,7 +92,7 @@ def get_default_menus() -> List[IMenu]:
                 Ingrediente("Zanahoria","unid",1),
             ],
             precio=1500,
-            icono_path="IMG/ensaladamixta.png"
+            icono_path="IMG/ensaldamixta.png"
         ),
         CrearMenu(
             "Chorrillana",

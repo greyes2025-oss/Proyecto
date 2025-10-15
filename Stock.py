@@ -8,7 +8,7 @@ class Stock:
     def __init__(self):
         self.ingredientes: Dict[str, Ingrediente] = {}
 
-    def agregar(self, nombre: str, unidad: str, cantidad: float):
+    def agregar(self, nombre: str, unidad: str, cantidad: int):
         nombre = normalizar_nombre(nombre)
         unidad = unidad.strip().lower() if unidad else None
 
@@ -24,7 +24,7 @@ class Stock:
             return True
         return False
 
-    def descontar(self, nombre_ingrediente: str, cantidad_a_descontar: float) -> bool:
+    def descontar(self, nombre_ingrediente: str, cantidad_a_descontar: int) -> bool:
         nombre_ingrediente = normalizar_nombre(nombre_ingrediente)
         if nombre_ingrediente in self.ingredientes and self.ingredientes[nombre_ingrediente].cantidad >= cantidad_a_descontar:
             self.ingredientes[nombre_ingrediente].cantidad -= cantidad_a_descontar

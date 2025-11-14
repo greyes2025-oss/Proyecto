@@ -30,8 +30,8 @@ SessionLocal = sessionmaker(
 )
 
 #creamos la base de modelos
-class Base(declarative_base()):
-    pass
+Base =declarative_base()
+    
 
 def get_db():
     db = SessionLocal()

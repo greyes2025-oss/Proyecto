@@ -1,6 +1,7 @@
 import os 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base   
+from sqlalchemy.pool import StaticPool
 
 #creamos el nombre del archivo de la bd
 database_archivo = "restaurante.db"
@@ -18,7 +19,7 @@ engine = create_engine(
     database_url,
     echo=True,  #para ver las consultas que se ejecutan
     connect_args={"check_same_thread": False}, #para sqlite
-    poolclass="StaticPool" 
+    poolclass=StaticPool
     )
 
 #creamos la sesion

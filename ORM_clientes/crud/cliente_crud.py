@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-import models  # Importamos nuestros modelos (models.py)
-from sqlalchemy.exc import IntegrityError # Para manejar errores de email duplicado
+import models  
+from sqlalchemy.exc import IntegrityError 
 
 # --- Función de CREACIÓN (Create) ---
 
@@ -8,6 +8,16 @@ def crear_cliente(db: Session, nombre: str, email: str):
     """
     Crea un nuevo cliente en la base de datos.
     """
+    # Validacion: nombre y email no vacios
+    if not nombre or not email:
+        print("Error: Nombre y Email no pueden estar vacios.")
+        return None
+        
+    # Validacion: email unico 
+    if obtener_cliente_por_email(db, email):
+        print(f"Error: El email '{email}' ya está registrado.")
+        return None
+        
     try:
         # 1. Crea el objeto Python
         db_cliente = models.Cliente(
@@ -21,16 +31,16 @@ def crear_cliente(db: Session, nombre: str, email: str):
         # 3. Confirma (guarda) los cambios en la BD
         db.commit()
         
-        # 4. Refresca el objeto (para obtener el 'id' generado)
+        # 4. Refresca el objeto (para obtener el id generado)
         db.refresh(db_cliente)
         
         print(f"Cliente '{db_cliente.nombre}' creado con éxito.")
         return db_cliente
 
     except IntegrityError:
-        # Esto pasa si el email ya existe (porque pusimos 'unique=True')
+        # Esto pasa si el email ya existe (doble check por si acaso)
         db.rollback() # Revierte los cambios
-        print(f"Error: El email '{email}' ya está registrado.")
+        print(f"Error de Integridad: El email '{email}' ya está registrado.")
         return None
     
     except Exception as e:
@@ -48,6 +58,10 @@ def obtener_cliente_por_email(db: Session, email: str):
     email_normalizado = email.strip().lower()
     return db.query(models.Cliente).filter(models.Cliente.email == email_normalizado).first()
 
+def obtener_cliente_por_id(db: Session, cliente_id: int):
+
+    return db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
+
 def listar_clientes(db: Session):
     """
     Devuelve una lista de todos los clientes en la base de datos.
@@ -56,22 +70,22 @@ def listar_clientes(db: Session):
 
 # --- Función de ACTUALIZACIÓN (Update) ---
 
-def actualizar_cliente(db: Session, email: str, nuevo_nombre: str = None, nuevo_email: str = None):
-    """
-    Actualiza el nombre o el email de un cliente.
-    """
-    db_cliente = obtener_cliente_por_email(db, email)
+def actualizar_cliente(db: Session, cliente_id: int, nuevo_nombre: str, nuevo_email: str):
+    
+    db_cliente = obtener_cliente_por_id(db, cliente_id)
     
     if not db_cliente:
-        print(f"Error: No se encontró el cliente con email '{email}'.")
+        print(f"Error: No se encontró el cliente con ID '{cliente_id}'.")
         return None
     
+    # Validacion: no vacios
+    if not nuevo_nombre or not nuevo_email:
+        print("Error: Nombre y Email no pueden estar vacios.")
+        return None
+        
     try:
-        if nuevo_nombre:
-            db_cliente.nombre = nuevo_nombre.strip().title()
-            
-        if nuevo_email:
-            db_cliente.email = nuevo_email.strip().lower()
+        db_cliente.nombre = nuevo_nombre.strip().title()
+        db_cliente.email = nuevo_email.strip().lower()
             
         db.commit()
         db.refresh(db_cliente)
@@ -79,7 +93,7 @@ def actualizar_cliente(db: Session, email: str, nuevo_nombre: str = None, nuevo_
         return db_cliente
         
     except IntegrityError:
-        # Error si el 'nuevo_email' ya existe en otro cliente
+        # Error si el nuevo_email ya existe en otro cliente
         db.rollback()
         print(f"Error: El nuevo email '{nuevo_email}' ya está en uso.")
         return None
@@ -90,30 +104,25 @@ def actualizar_cliente(db: Session, email: str, nuevo_nombre: str = None, nuevo_
 
 # --- Función de ELIMINACIÓN (Delete) ---
 
-def eliminar_cliente(db: Session, email: str):
+def eliminar_cliente(db: Session, cliente_id: int):
     """
-    Elimina un cliente de la base de datos por su email.
+    Elimina usando el ID del cliente.
     """
-    db_cliente = obtener_cliente_por_email(db, email)
+    db_cliente = obtener_cliente_por_id(db, cliente_id)
     
     if not db_cliente:
-        print(f"Error: No se encontró el cliente con email '{email}'.")
+        print(f"Error: No se encontró el cliente con ID '{cliente_id}'.")
         return False
         
-    # --- Verificación de la pauta ---
-    # La pauta dice: "Impedir eliminar clientes que tengan pedidos asociados"
-    # 'db_cliente.pedidos' es la relación que definimos.
-    # Si la lista NO está vacía, tiene pedidos.
-    
-    # ¡ESTA PARTE ESTÁ COMENTADA TEMPORALMENTE!
-    # if db_cliente.pedidos:
-    #     print(f"Error: No se puede eliminar el cliente '{db_cliente.nombre}' porque tiene pedidos asociados.")
-    #     return False
+
+    if db_cliente.pedidos:
+        print(f"Error: No se puede eliminar el cliente '{db_cliente.nombre}' porque tiene {len(db_cliente.pedidos)} pedido(s) asociados.")
+        return False
     
     try:
         db.delete(db_cliente)
         db.commit()
-        print(f"Cliente '{db_cliente.nombre}' (email: {email}) eliminado con éxito.")
+        print(f"Cliente '{db_cliente.nombre}' (ID: {cliente_id}) eliminado con éxito.")
         return True
     except Exception as e:
         db.rollback()

@@ -69,14 +69,11 @@ def probar_crud_clientes(db):
     ccrud.actualizar_cliente(db, email="ana.gomez@correo.com", nuevo_nombre="Ana Gonzalez")
     
     # Verificamos el cambio
-    # ¡¡¡ ESTA ES LA LÍNEA CORREGIDA !!!
     ana = ccrud.obtener_cliente_por_email(db, "ana.gomez@correo.com") 
-    
     print(f"Nombre actualizado: {ana.nombre}") # Debería ser Ana Gonzalez
 
     # --- Prueba 4: ELIMINAR (Debe funcionar) ---
     print("\n[Prueba DELETE Cliente (Debe funcionar)]")
-    # 'Ana' no tiene pedidos, así que se puede eliminar.
     ccrud.eliminar_cliente(db, email="ana.gomez@correo.com")
 
     # --- Prueba 5: LEER (Verificar eliminación) ---
@@ -100,8 +97,7 @@ if __name__ == "__main__":
     
     try:
         # 3. Ejecuta las pruebas de Ingredientes
-        # (Las comento para que no se ejecuten cada vez)
-        # probar_crud_ingredientes(db) 
+        probar_crud_ingredientes(db) 
         
         # 4. Ejecuta las pruebas de Clientes
         probar_crud_clientes(db)

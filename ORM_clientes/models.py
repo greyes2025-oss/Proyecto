@@ -22,4 +22,24 @@ class Ingredientes(Base):
         return f"Ingrediente(id={self.id}, nombre={self.nombre}, unidad={self.unidad}, cantidad={self.cantidad})"
 
 
+# ---  Modelo de Cliente ---
 
+class Cliente(Base):
+
+    __tablename__ = "clientes"
+
+ 
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+   
+    nombre = Column(String(100), nullable=False)
+    
+ 
+    email = Column(String(100), unique=True, nullable=False, index=True)
+
+
+    #pedidos = relationship("Pedido", back_populates="cliente")
+
+    def __repr__(self):
+        return f"<Cliente(id={self.id}, nombre='{self.nombre}', email='{self.email}')>"

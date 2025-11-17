@@ -24,73 +24,58 @@ def leer_todos_los_menus(db: Session):
     return db.query(Menu).all()
 
 # --- Función de CREACIÓN (Create) ---
+# menu_crud.py (Función 'crear_menu' CORREGIDA)
+
+# menu_crud.py (Función 'crear_menu' CORREGIDA)
 
 def crear_menu(db: Session, nombre: str, descripcion: str, precio: float, receta: list):
     """
-    Crea un nuevo menu y sus asociaciones con ingredientes.
-    receta debe ser una lista de dicts:
-    [
-        {"ingrediente_id": 1, "cantidad": 1},  # Ej: 1 vienesa
-        {"ingrediente_id": 5, "cantidad": 0.5} # Ej: 0.5 palta
-    ]
+    Crea un nuevo menú. Si la receta está vacía, solo crea el menú.
+    Si la receta tiene items, los asocia.
     """
     
-    # Validacion: nombre de menu unico
-    if leer_menu_por_nombre(db, nombre):
-        print(f"Error: El menu '{nombre}' ya existe.")
-        return None
-    
-    # Validacion: precio positivo
-    if precio <= 0:
-        print("Error: El precio debe ser un numero positivo.")
+    if leer_menu_por_nombre(db, nombre) or precio <= 0:
+        print(f"Error: Menu '{nombre}' ya existe o precio es inválido.")
         return None
         
+    from . import ingrediente_crud 
+    from models import Menu, MenuIngrediente 
+
     try:
         # 1. Crear el objeto Menu principal
         db_menu = Menu(
-            nombre=nombre.strip().title(),
-            descripcion=descripcion.strip(),
+            nombre=nombre.strip().title(), 
+            descripcion=descripcion.strip(), 
             precio=precio
         )
         db.add(db_menu)
         
-        # 2. Asociar los ingredientes de la receta
-        if not receta:
-            raise Exception("La receta no puede estar vacia.")
-
-        for item in receta:
-            ingrediente_id = item['ingrediente_id']
-            cantidad_requerida = item['cantidad']
-            
-            # Validacion: El ingrediente existe en la BD?
-            db_ingrediente = ingrediente_crud.obtener_ingrediente_por_id(db, ingrediente_id) # (Asume que esta funcion existe en ingrediente_crud.py)
-            if not db_ingrediente:
-                raise Exception(f"El ingrediente con ID {ingrediente_id} no existe.")
-            
-            # Validacion: Cantidad positiva
-            if cantidad_requerida <= 0:
-                raise Exception(f"La cantidad para el ingrediente ID {ingrediente_id} debe ser positiva.")
+        # 2. Asociar los ingredientes (SOLO SI LA RECETA NO ESTÁ VACÍA)
+        # ESTA ES LA CORRECCIÓN: Quitamos el 'if not receta: raise Exception'
+        if receta: 
+            for item in receta:
+                ingrediente_id = item['ingrediente_id']
+                cantidad_requerida = item['cantidad']
                 
-            # 3. Crear el Objeto de Asociacion (MenuIngrediente)
-            db_menu_ingrediente = MenuIngrediente(
-                menu=db_menu, # Asocia con el menu que acabamos de crear
-                ingrediente=db_ingrediente, # Asocia con el ingrediente encontrado
-                cantidad=cantidad_requerida
-            )
-            db.add(db_menu_ingrediente)
+                db_ingrediente = ingrediente_crud.obtener_ingrediente_por_id(db, ingrediente_id)
+                
+                if not db_ingrediente or cantidad_requerida <= 0:
+                    raise Exception(f"Ingrediente ID {ingrediente_id} inválido o cantidad negativa.")
+                    
+                db_menu_ingrediente = MenuIngrediente(
+                    menu=db_menu, 
+                    ingrediente=db_ingrediente, 
+                    cantidad=cantidad_requerida
+                )
+                db.add(db_menu_ingrediente)
 
-        # 4. Guardar todo (Menu y Asociaciones) en la BD
+        # 3. Guardar (el menú solo, o el menú + la receta)
         db.commit()
         db.refresh(db_menu)
-        print(f"Menu '{db_menu.nombre}' creado con exito.")
         return db_menu
 
-    except IntegrityError as e:
-        db.rollback() # Revertir todo si algo falla
-        print(f"Error de integridad al crear menu (nombre duplicado?): {e}")
-        return None
     except Exception as e:
-        db.rollback() # Revertir todo si algo falla
+        db.rollback()
         print(f"Error al crear menu: {e}")
         return None
 
@@ -138,3 +123,45 @@ def eliminar_menu(db: Session, menu_id: int):
         db.rollback()
         print(f"Error al eliminar menu: {e}")
         return False
+    
+
+# menu_crud.py (Añadir esta función)
+
+def crear_receta_existente(db: Session, menu_id: int, receta: list):
+    """
+    Función que crea las asociaciones MenuIngrediente para un menú que ya existe.
+    receta: [{"ingrediente_id": ID, "cantidad": Cantidad}, ...]
+    """
+    from . import ingrediente_crud # Importación local
+
+    try:
+        db_menu = leer_menu_por_id(db, menu_id)
+        if not db_menu:
+            return "Error: Menú no encontrado."
+            
+        # 1. Si la receta ya existe (tiene ítems), la saltamos para evitar duplicados
+        if db.query(MenuIngrediente).filter(MenuIngrediente.menu_id == menu_id).count() > 0:
+            return "Advertencia: La receta ya existe para este menú."
+
+        # 2. Crear las nuevas asociaciones
+        for item in receta:
+            ingrediente_id = item['ingrediente_id']
+            cantidad_requerida = item['cantidad']
+            
+            db_ingrediente = ingrediente_crud.obtener_ingrediente_por_id(db, ingrediente_id)
+            if not db_ingrediente or cantidad_requerida <= 0:
+                raise Exception(f"Ingrediente ID {ingrediente_id} inválido o cantidad negativa.")
+                
+            db_menu_ingrediente = MenuIngrediente(
+                menu=db_menu, 
+                ingrediente=db_ingrediente, 
+                cantidad=cantidad_requerida
+            )
+            db.add(db_menu_ingrediente)
+
+        db.commit()
+        return db_menu
+
+    except Exception as e:
+        db.rollback()
+        return f"Error al crear receta: {e}"

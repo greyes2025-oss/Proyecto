@@ -45,6 +45,7 @@ class RestauranteApp(ctk.CTk):
         self.tabview.add("Ingredientes") 
         self.tabview.add("Menús")
         self.tabview.add("Panel de Compra")
+        self.tabview.add("Pedidos")
         self.tabview.add("Estadísticas")
         
         self.tabview.grid_columnconfigure(0, weight=1)
@@ -58,6 +59,7 @@ class RestauranteApp(ctk.CTk):
         self.setup_ingredientes_tab()
         self.setup_menus_tab()
         self.setup_compra_tab()
+        self.setup_pedidos_tab()
         self.setup_graficos_tab()
 
         # Cargar datos iniciales al iniciar
@@ -65,7 +67,6 @@ class RestauranteApp(ctk.CTk):
         self.cargar_lista_ingredientes()
         self.load_menus()
         self.load_pedidos_init_data()
-        # --- LÓGICA PARA MODIFICAR MENÚ ---
 
     # ===================================================================
     # LÓGICA ESPECÍFICA PARA MODIFICAR MENÚ (CON TABLA Y ELIMINAR)
@@ -763,11 +764,7 @@ class RestauranteApp(ctk.CTk):
         finally:
             db.close()
             
-    # ====================================================
-    # PESTAÑA 3: MENÚS (Integración de Carga de Recetas)
-    # ====================================================
-
-    # app.py (Reemplazar estas funciones dentro de la clase RestauranteApp)
+   
 
     # ====================================================
     # PESTAÑA 3: MENÚS (REFACTORIZADA CON TREEVIEW Y LÓGICA DE CARGA)
@@ -1281,10 +1278,6 @@ class RestauranteApp(ctk.CTk):
             db.close()
 
     # ====================================================
-    # PESTAÑA 5: GRÁFICOS
-    # ====================================================
-
-    # ====================================================
     # PESTAÑA 5: GRÁFICOS ESTADÍSTICOS (CORREGIDO)
     # ====================================================
 
@@ -1356,3 +1349,177 @@ class RestauranteApp(ctk.CTk):
             self.mostrar_mensaje(f"Error al generar gráfico: {e}", tipo="error")
         finally:
             db.close()
+
+
+    #====================================================
+    # PESTAÑA 6: GESTIÓN DE PEDIDOS (HISTORIAL Y DETALLE)
+    # ====================================================
+
+    def setup_pedidos_tab(self):
+        tab = self.tabview.tab("Pedidos")
+        tab.grid_columnconfigure(0, weight=1)
+        tab.grid_rowconfigure(1, weight=1) # Lista pedidos
+        tab.grid_rowconfigure(3, weight=1) # Detalle pedidos
+
+        # --- 1. Filtros y Controles ---
+        filter_frame = ctk.CTkFrame(tab)
+        filter_frame.grid(row=0, column=0, padx=20, pady=(10, 5), sticky="ew")
+        
+        ctk.CTkLabel(filter_frame, text="Filtrar por Cliente:").pack(side="left", padx=10)
+        
+        # Reusamos la lógica de clientes para llenar este combo
+        self.filtro_cliente_var = ctk.StringVar(value="Todos")
+        self.combo_filtro_cliente = ctk.CTkComboBox(filter_frame, variable=self.filtro_cliente_var, state="readonly", width=250)
+        self.combo_filtro_cliente.pack(side="left", padx=10)
+        
+        ctk.CTkButton(filter_frame, text="Filtrar / Actualizar", command=self.cargar_historial_pedidos).pack(side="left", padx=10)
+        ctk.CTkButton(filter_frame, text="Eliminar Pedido Seleccionado", fg_color="red", command=self.eliminar_pedido_gui).pack(side="right", padx=10)
+
+        # --- 2. Tabla Principal: LISTA DE PEDIDOS ---
+        
+        frame_lista = ctk.CTkFrame(tab)
+        frame_lista.grid(row=1, column=0, padx=20, pady=5, sticky="nsew")
+        
+        self.tree_pedidos = ttk.Treeview(frame_lista, columns=("ID", "Fecha", "Cliente", "Total"), show="headings", height=8)
+        self.tree_pedidos.heading("ID", text="ID")
+        self.tree_pedidos.heading("Fecha", text="Fecha")
+        self.tree_pedidos.heading("Cliente", text="Cliente")
+        self.tree_pedidos.heading("Total", text="Total ($)")
+        
+        self.tree_pedidos.column("ID", width=50, anchor="center")
+        self.tree_pedidos.column("Fecha", width=150, anchor="center")
+        self.tree_pedidos.column("Cliente", width=200)
+        self.tree_pedidos.column("Total", width=100, anchor="e")        
+        
+        self.tree_pedidos.pack(side="left", fill="both", expand=True)
+        
+        # Scrollbar para pedidos
+        sb_ped = ttk.Scrollbar(frame_lista, orient="vertical", command=self.tree_pedidos.yview)
+        sb_ped.pack(side="right", fill="y")
+        self.tree_pedidos.configure(yscrollcommand=sb_ped.set)
+
+        # Evento: Al hacer click en un pedido, mostrar detalle
+        self.tree_pedidos.bind("<<TreeviewSelect>>", self.mostrar_detalle_pedido)
+
+        # --- 3. Tabla Secundaria: DETALLE DEL PEDIDO ---
+        ctk.CTkLabel(tab, text="Detalle del Pedido Seleccionado (Contenido)", font=("Arial", 12, "bold")).grid(row=2, column=0, sticky="w", padx=20, pady=(10,0))
+
+        frame_detalle = ctk.CTkFrame(tab)
+        frame_detalle.grid(row=3, column=0, padx=20, pady=(5, 20), sticky="nsew")
+
+        self.tree_detalle = ttk.Treeview(frame_detalle, columns=("Menu", "Cantidad", "Precio Unit.", "Subtotal"), show="headings", height=5)
+        self.tree_detalle.heading("Menu", text="Menú")
+        self.tree_detalle.heading("Cantidad", text="Cantidad")
+        self.tree_detalle.heading("Precio Unit.", text="Precio Unit.")
+        self.tree_detalle.heading("Subtotal", text="Subtotal")
+        
+        self.tree_detalle.column("Menu", width=250)
+        self.tree_detalle.column("Cantidad", width=80, anchor="center")
+        self.tree_detalle.column("Precio Unit.", width=100, anchor="e")
+        self.tree_detalle.column("Subtotal", width=100, anchor="e")
+        
+        self.tree_detalle.pack(side="left", fill="both", expand=True)
+
+    def cargar_historial_pedidos(self):
+        """Carga los pedidos en la tabla superior, aplicando filtro si es necesario."""
+        # 1. Actualizar Combo de Clientes (por si hay nuevos)
+        db = self.get_db_session()
+        if not db: return
+        
+        try:
+            # Llenar combo
+            clientes = ccrud.listar_clientes(db)
+            opciones = ["Todos"] + [f"{c.nombre} (ID: {c.id})" for c in clientes]
+            self.combo_filtro_cliente.configure(values=opciones)
+            
+            # Determinar filtro
+            seleccion = self.filtro_cliente_var.get()
+            pedidos = []
+            
+            if seleccion == "Todos":
+                pedidos = pcrud.leer_todos_los_pedidos(db)
+            else:
+                # Extraer ID del string "Nombre (ID: 5)"
+                try:
+                    cliente_id = int(seleccion.split("ID: ")[1].replace(")", ""))
+                    pedidos = pcrud.leer_pedidos_por_cliente(db, cliente_id)
+                except:
+                    self.mostrar_mensaje("Error al interpretar filtro de cliente.", tipo="error")
+                    pedidos = []
+
+            # Limpiar tabla
+            for item in self.tree_pedidos.get_children():
+                self.tree_pedidos.delete(item)
+            
+            # Llenar tabla
+            for p in pedidos:
+                # Formato fecha seguro
+                fecha_str = p.fecha.strftime("%Y-%m-%d %H:%M") if p.fecha else "---"
+                nombre_cliente = p.cliente.nombre if p.cliente else "Cliente Eliminado"
+                
+                self.tree_pedidos.insert("", "end", values=(p.id, fecha_str, nombre_cliente, f"${p.total:,.0f}"))
+                
+            # Limpiar detalle
+            for item in self.tree_detalle.get_children():
+                self.tree_detalle.delete(item)
+                
+        finally:
+            db.close()
+
+    def mostrar_detalle_pedido(self, event):
+        """Muestra los ítems del pedido seleccionado en la tabla inferior."""
+        selected = self.tree_pedidos.focus()
+        if not selected: return
+        
+        values = self.tree_pedidos.item(selected, "values")
+        pedido_id = int(values[0])
+        
+        db = self.get_db_session()
+        if not db: return
+        
+        try:
+            pedido = pcrud.leer_pedido_por_id(db, pedido_id)
+            
+            # Limpiar tabla detalle
+            for item in self.tree_detalle.get_children():
+                self.tree_detalle.delete(item)
+                
+            if not pedido: return
+            
+            # Llenar con los items (relación items_comprados)
+            for item in pedido.items_comprados:
+                menu_nombre = item.menu.nombre if item.menu else "Menú borrado"
+                precio_unit = item.menu.precio if item.menu else 0
+                subtotal = precio_unit * item.cantidad
+                
+                self.tree_detalle.insert("", "end", values=(
+                    menu_nombre, 
+                    item.cantidad, 
+                    f"${precio_unit:,.0f}", 
+                    f"${subtotal:,.0f}"
+                ))
+        finally:
+            db.close()
+
+    def eliminar_pedido_gui(self):
+        """Llama al CRUD para eliminar el pedido."""
+        selected = self.tree_pedidos.focus()
+        if not selected:
+            self.mostrar_mensaje("Selecciona un pedido arriba para eliminar.", tipo="error")
+            return
+            
+        values = self.tree_pedidos.item(selected, "values")
+        pedido_id = int(values[0])
+        
+        if messagebox.askyesno("Confirmar", f"¿Eliminar el Pedido #{pedido_id}? Esta acción es irreversible."):
+            db = self.get_db_session()
+            if not db: return
+            
+            try:
+                if pcrud.eliminar_pedido(db, pedido_id):
+                    self.mostrar_mensaje(f"Pedido #{pedido_id} eliminado.", tipo="success")
+                    self.cargar_historial_pedidos() # Recargar tabla
+                else:
+                    self.mostrar_mensaje("Error al eliminar el pedido.", tipo="error")
+            finally:
+                db.close()

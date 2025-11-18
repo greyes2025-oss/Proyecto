@@ -99,3 +99,23 @@ def crear_pedido(db: Session, cliente_id: int, menus_pedido: list):
         db.rollback() # Revertir todo si falla
         print(f"Error al crear pedido: {e}")
         raise e
+    
+
+def eliminar_pedido(db: Session, pedido_id: int):
+    """
+    Elimina un pedido por su ID.
+    """
+    pedido = leer_pedido_por_id(db, pedido_id)
+    if not pedido:
+        return False
+    
+    try:
+        # Al borrar el pedido, SQLAlchemy borrará en cascada los items 
+        # (si la relación está bien configurada) o los borrará manualmente.
+        db.delete(pedido)
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        print(f"Error al eliminar pedido: {e}")
+        return False

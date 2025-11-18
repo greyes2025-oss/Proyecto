@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 import os
 from functools import reduce
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # --- Importaciones de la lógica de negocio ---
 from database import get_db
@@ -64,6 +65,247 @@ class RestauranteApp(ctk.CTk):
         self.cargar_lista_ingredientes()
         self.load_menus()
         self.load_pedidos_init_data()
+        # --- LÓGICA PARA MODIFICAR MENÚ ---
+
+    # ===================================================================
+    # LÓGICA ESPECÍFICA PARA MODIFICAR MENÚ (CON TABLA Y ELIMINAR)
+    # ===================================================================
+
+    def abrir_ventana_modificar_menu(self):
+        """Abre ventana para modificar menú usando una Tabla para los ingredientes."""
+        selected_item = self.tree_menus.focus()
+        if not selected_item:
+            self.mostrar_mensaje("Selecciona un menú para modificar.", tipo="error")
+            return
+
+        values = self.tree_menus.item(selected_item, 'values')
+        menu_id = int(values[0])
+
+        db = self.get_db_session()
+        if not db: return
+        
+        try:
+            menu_actual = mcrud.leer_menu_por_id(db, menu_id)
+            if not menu_actual:
+                return
+
+            # 1. Configurar Ventana
+            self.ventana_mod = ctk.CTkToplevel(self)
+            self.ventana_mod.title(f"Modificar: {menu_actual.nombre}")
+            self.ventana_mod.geometry("600x700")
+            self.ventana_mod.grab_set()
+
+            self.menu_id_en_edicion = menu_id
+            self.temp_receta_mod = []      # Lista temporal para la receta
+            self.mapa_ingredientes_mod = {} # Mapa para el combobox
+
+            # 2. Campos de Texto (Nombre, Desc, Precio)
+            ctk.CTkLabel(self.ventana_mod, text="Nombre:").pack(pady=(10, 0))
+            self.entry_mod_nombre = ctk.CTkEntry(self.ventana_mod)
+            self.entry_mod_nombre.insert(0, menu_actual.nombre)
+            self.entry_mod_nombre.pack(pady=5)
+
+            ctk.CTkLabel(self.ventana_mod, text="Descripción:").pack(pady=(5, 0))
+            self.entry_mod_desc = ctk.CTkEntry(self.ventana_mod)
+            self.entry_mod_desc.insert(0, menu_actual.descripcion or "")
+            self.entry_mod_desc.pack(pady=5)
+
+            ctk.CTkLabel(self.ventana_mod, text="Precio:").pack(pady=(5, 0))
+            self.entry_mod_precio = ctk.CTkEntry(self.ventana_mod)
+            self.entry_mod_precio.insert(0, str(menu_actual.precio))
+            self.entry_mod_precio.pack(pady=5)
+
+            # 3. Sección de Agregar Ingrediente
+            ctk.CTkLabel(self.ventana_mod, text="--- Editar Receta ---", font=("Arial", 12, "bold")).pack(pady=10)
+            
+            frame_add = ctk.CTkFrame(self.ventana_mod)
+            frame_add.pack(pady=5, padx=10, fill="x")
+
+            self.combo_ing_mod = ctk.CTkComboBox(frame_add, state="readonly")
+            self.combo_ing_mod.pack(side="left", padx=5, expand=True, fill="x")
+            
+            # Cargar ingredientes al combo (Manteniendo la sesión abierta)
+            ingredientes = icrud.listar_ingredientes(db)
+            self.mapa_ingredientes_mod = {i.nombre: i.id for i in ingredientes}
+            self.combo_ing_mod.configure(values=list(self.mapa_ingredientes_mod.keys()))
+            if ingredientes: self.combo_ing_mod.set(ingredientes[0].nombre)
+
+            self.entry_cant_mod = ctk.CTkEntry(frame_add, placeholder_text="Cant.", width=60)
+            self.entry_cant_mod.pack(side="left", padx=5)
+
+            ctk.CTkButton(frame_add, text="Añadir", width=60, command=self.agregar_ingrediente_mod).pack(side="left", padx=5)
+
+            # 4. TABLA DE RECETA
+            frame_tabla = ctk.CTkFrame(self.ventana_mod)
+            frame_tabla.pack(pady=10, padx=10, fill="both", expand=True)
+
+            self.tree_receta_mod = ttk.Treeview(frame_tabla, columns=("ID", "Nombre", "Cantidad"), show="headings", height=8)
+            self.tree_receta_mod.heading("ID", text="ID")
+            self.tree_receta_mod.heading("Nombre", text="Ingrediente")
+            self.tree_receta_mod.heading("Cantidad", text="Cantidad")
+            self.tree_receta_mod.column("ID", width=40)
+            self.tree_receta_mod.column("Nombre", width=250)
+            self.tree_receta_mod.column("Cantidad", width=80)
+            self.tree_receta_mod.pack(side="left", fill="both", expand=True)
+
+            # 5. Botón ELIMINAR
+            ctk.CTkButton(self.ventana_mod, text="Eliminar Ingrediente Seleccionado", fg_color="red", command=self.eliminar_ingrediente_mod).pack(pady=5)
+
+            # 6. Cargar la receta actual en la lista temporal (AHORA SÍ FUNCIONARÁ)
+            for item in menu_actual.items_receta:
+                self.temp_receta_mod.append({
+                    "ingrediente_id": item.ingrediente.id,
+                    "nombre": item.ingrediente.nombre,
+                    "cantidad": item.cantidad
+                })
+            
+            self.refrescar_tabla_mod() # Mostrar en la tabla
+
+            # 7. Botón Guardar Final
+            ctk.CTkButton(self.ventana_mod, text="Guardar Cambios", fg_color="orange", height=40, font=("Arial", 14, "bold"), command=self.guardar_cambios_mod).pack(pady=20, padx=20, fill="x")
+
+        finally:
+            # Cerramos la conexión AL FINAL de todo
+            db.close()
+
+    def refrescar_tabla_mod(self):
+        """Actualiza la tabla visual basada en la lista temporal."""
+        for item in self.tree_receta_mod.get_children():
+            self.tree_receta_mod.delete(item)
+        
+        for item in self.temp_receta_mod:
+            self.tree_receta_mod.insert("", "end", values=(item['ingrediente_id'], item['nombre'], item['cantidad']))
+
+    def agregar_ingrediente_mod(self):
+        """Agrega o suma cantidad a la lista temporal."""
+        nombre = self.combo_ing_mod.get()
+        cant_str = self.entry_cant_mod.get()
+        
+        if not nombre or not cant_str: return
+        try:
+            cant = float(cant_str)
+            if cant <= 0: raise ValueError
+        except:
+            tk.messagebox.showerror("Error", "Cantidad inválida")
+            return
+
+        ing_id = self.mapa_ingredientes_mod.get(nombre)
+
+        # Verificar si ya existe para sumar
+        for item in self.temp_receta_mod:
+            if item['ingrediente_id'] == ing_id:
+                item['cantidad'] += cant
+                self.refrescar_tabla_mod()
+                return
+
+        # Si no existe, agregar
+        self.temp_receta_mod.append({"ingrediente_id": ing_id, "nombre": nombre, "cantidad": cant})
+        self.refrescar_tabla_mod()
+
+    def eliminar_ingrediente_mod(self):
+        """Elimina el ingrediente seleccionado de la tabla."""
+        selected = self.tree_receta_mod.focus()
+        if not selected:
+            tk.messagebox.showerror("Error", "Selecciona un ingrediente de la tabla para eliminarlo.")
+            return
+        
+        values = self.tree_receta_mod.item(selected, 'values')
+        id_borrar = int(values[0])
+        
+        # Reconstruir la lista excluyendo el ID borrado
+        self.temp_receta_mod = [i for i in self.temp_receta_mod if i['ingrediente_id'] != id_borrar]
+        self.refrescar_tabla_mod()
+
+    def guardar_cambios_mod(self):
+        """Guarda el menú actualizado en la BD."""
+        nombre = self.entry_mod_nombre.get().strip()
+        desc = self.entry_mod_desc.get().strip()
+        try:
+            precio = float(self.entry_mod_precio.get().strip())
+        except:
+            tk.messagebox.showerror("Error", "Precio inválido")
+            return
+
+        if not nombre or not self.temp_receta_mod:
+            tk.messagebox.showerror("Error", "Falta nombre o ingredientes.")
+            return
+
+        db = self.get_db_session()
+        if not db: return
+
+        try:
+            # Llamamos a la función de CRUD (asegurate de tener menu_crud actualizado)
+            res = mcrud.actualizar_menu_completo(
+                db, self.menu_id_en_edicion, nombre, desc, precio, self.temp_receta_mod
+            )
+            
+            if isinstance(res, str) and "Error" in res:
+                tk.messagebox.showerror("Error BD", res)
+            elif res:
+                tk.messagebox.showinfo("Éxito", "Menú modificado correctamente.")
+                self.ventana_mod.destroy()
+                self.load_menus()
+            else:
+                tk.messagebox.showerror("Error", "No se pudo actualizar.")
+        except Exception as e:
+            tk.messagebox.showerror("Error", str(e))
+        finally:
+            db.close()
+
+    def limpiar_receta_temporal(self):
+        """Borra la receta actual en la ventana de edición."""
+        self.temp_receta = []
+        self.lista_ingredientes_label.configure(state="normal")
+        self.lista_ingredientes_label.delete("0.0", "end")
+        self.lista_ingredientes_label.insert("0.0", "Receta vaciada.\n")
+        self.lista_ingredientes_label.configure(state="disabled")
+
+    def guardar_edicion_menu_bd(self):
+        """Llama al CRUD para actualizar el menú."""
+        nombre = self.entry_nuevo_menu_nombre.get().strip()
+        desc = self.entry_nuevo_menu_desc.get().strip()
+        precio_str = self.entry_nuevo_menu_precio.get().strip()
+
+        if not nombre or not precio_str:
+            tk.messagebox.showerror("Error", "Falta nombre o precio")
+            return
+        
+        if not self.temp_receta:
+            tk.messagebox.showerror("Error", "El menú debe tener al menos un ingrediente.")
+            return
+
+        try:
+            precio = float(precio_str)
+        except ValueError:
+            tk.messagebox.showerror("Error", "Precio inválido")
+            return
+
+        db = self.get_db_session()
+        if not db: return
+
+        try:
+            # Llamamos a la función NUEVA de menu_crud
+            resultado = mcrud.actualizar_menu_completo(
+                db, 
+                self.menu_id_en_edicion, 
+                nombre, 
+                desc, 
+                precio, 
+                self.temp_receta
+            )
+            
+            if isinstance(resultado, str) and "Error" in resultado:
+                tk.messagebox.showerror("Error BD", resultado)
+            elif resultado:
+                tk.messagebox.showinfo("Éxito", "Menú actualizado correctamente.")
+                self.ventana_menu.destroy()
+                self.load_menus()
+            else:
+                tk.messagebox.showerror("Error", "No se pudo actualizar.")
+        except Exception as e:
+             tk.messagebox.showerror("Error Crítico", str(e))
+        finally:
+            db.close()
 
 
     # --- Funciones Auxiliares ---
@@ -542,16 +784,20 @@ class RestauranteApp(ctk.CTk):
         
         ctk.CTkLabel(gestion_frame, text="Gestión de Menús y Recetas", font=ctk.CTkFont(size=16, weight="bold")).grid(row=0, column=0, columnspan=4, padx=10, pady=(5, 5))
         
-        # BOTÓN CLAVE: Carga los menús y sus recetas (si los ingredientes del CSV existen)
-        ctk.CTkButton(gestion_frame, text="Menus prefijos", command=self.crear_recetas_masivas).grid(row=1, column=0, padx=10, pady=10, sticky="ew")
+        # Botón Carga Masiva
+        ctk.CTkButton(gestion_frame, text="Cargar Menús Prefijos", command=self.crear_recetas_masivas).grid(row=1, column=0, padx=10, pady=10, sticky="ew")
         
+        # Botón Eliminar
         ctk.CTkButton(gestion_frame, text="Eliminar Menú Seleccionado", command=self.eliminar_menu_seleccionado).grid(row=1, column=1, padx=10, pady=10, sticky="ew")
-        ctk.CTkButton(gestion_frame, text="Crear Menú ", command=lambda: self.mostrar_mensaje("Funcionalidad de creación individual omitida.", tipo="info")).grid(row=1, column=2, padx=10, pady=10, sticky="ew")
-
+        
+        # boton ventana emergente de crear menu
+        ctk.CTkButton(gestion_frame, text="Crear Nuevo Menú", command=self.abrir_ventana_crear_menu).grid(row=1, column=2, padx=10, pady=10, sticky="ew")
 
         ctk.CTkLabel(tab, text="Menús Registrados (Selecciona para eliminar)", font=ctk.CTkFont(size=14)).grid(row=1, column=0, padx=20, pady=(10, 5), sticky="w")
+        # boton modificar menu
+        ctk.CTkButton(gestion_frame, text="Modificar Menú Seleccionado", command=self.abrir_ventana_modificar_menu).grid(row=1, column=3, padx=10, pady=10, sticky="ew")
         
-        # --- Área de Visualización (Treeview para selección) ---
+        # --- Área de Visualización ---
         list_frame = ctk.CTkFrame(tab) 
         list_frame.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="nsew")
         list_frame.grid_columnconfigure(0, weight=1)
@@ -573,6 +819,143 @@ class RestauranteApp(ctk.CTk):
         scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.tree_menus.yview)
         self.tree_menus.configure(yscrollcommand=scrollbar.set)
         scrollbar.grid(row=0, column=1, sticky="ns")
+ 
+
+    # --- LÓGICA PARA CREAR MENÚ MANUALMENTE (VENTANA EMERGENTE) ---
+
+    def abrir_ventana_crear_menu(self):
+        """Abre una ventana emergente (Toplevel) para crear un menú complejo."""
+        
+        # Crear ventana
+        self.ventana_menu = ctk.CTkToplevel(self)
+        self.ventana_menu.title("Crear Nuevo Menú")
+        self.ventana_menu.geometry("500x600")
+        self.ventana_menu.grab_set() # Hace que la ventana sea modal (bloquea la de atrás)
+
+        # Variables temporales para esta ventana
+        self.temp_receta = [] 
+        self.mapa_ingredientes_temp = {}
+
+        # --- Campos Básicos ---
+        ctk.CTkLabel(self.ventana_menu, text="Nombre del Menú:").pack(pady=(10, 0))
+        self.entry_nuevo_menu_nombre = ctk.CTkEntry(self.ventana_menu)
+        self.entry_nuevo_menu_nombre.pack(pady=5)
+
+        ctk.CTkLabel(self.ventana_menu, text="Descripción:").pack(pady=(5, 0))
+        self.entry_nuevo_menu_desc = ctk.CTkEntry(self.ventana_menu)
+        self.entry_nuevo_menu_desc.pack(pady=5)
+
+        ctk.CTkLabel(self.ventana_menu, text="Precio ($):").pack(pady=(5, 0))
+        self.entry_nuevo_menu_precio = ctk.CTkEntry(self.ventana_menu)
+        self.entry_nuevo_menu_precio.pack(pady=5)
+
+        # --- Sección de Ingredientes ---
+        ctk.CTkLabel(self.ventana_menu, text="--- Agregar Ingredientes a la Receta ---", font=("Arial", 12, "bold")).pack(pady=10)
+
+        frame_add_ing = ctk.CTkFrame(self.ventana_menu)
+        frame_add_ing.pack(pady=5, padx=10, fill="x")
+
+        # Cargar ingredientes disponibles
+        self.combo_ingredientes_menu = ctk.CTkComboBox(frame_add_ing, state="readonly")
+        self.combo_ingredientes_menu.pack(side="left", padx=5, expand=True, fill="x")
+        self.cargar_combo_ingredientes_ventana() # Función auxiliar
+
+        self.entry_cant_ing_menu = ctk.CTkEntry(frame_add_ing, placeholder_text="Cant.", width=60)
+        self.entry_cant_ing_menu.pack(side="left", padx=5)
+
+        ctk.CTkButton(frame_add_ing, text="+", width=40, command=self.agregar_ingrediente_a_lista_temporal).pack(side="left", padx=5)
+
+        # Lista visual de ingredientes agregados
+        self.lista_ingredientes_label = ctk.CTkTextbox(self.ventana_menu, height=100)
+        self.lista_ingredientes_label.pack(pady=10, padx=20, fill="both", expand=True)
+        self.lista_ingredientes_label.insert("0.0", "Ingredientes añadidos:\n")
+        self.lista_ingredientes_label.configure(state="disabled")
+
+        # Botón Guardar Final
+        ctk.CTkButton(self.ventana_menu, text="Guardar Menú", fg_color="green", command=self.guardar_nuevo_menu_bd).pack(pady=20)
+
+    def cargar_combo_ingredientes_ventana(self):
+        """Carga los ingredientes en el combobox de la ventana emergente."""
+        db = self.get_db_session()
+        if not db: return
+        try:
+            ingredientes = icrud.listar_ingredientes(db)
+            self.mapa_ingredientes_temp = {i.nombre: i.id for i in ingredientes}
+            self.combo_ingredientes_menu.configure(values=list(self.mapa_ingredientes_temp.keys()))
+            if ingredientes:
+                self.combo_ingredientes_menu.set(ingredientes[0].nombre)
+        finally:
+            db.close()
+
+    def agregar_ingrediente_a_lista_temporal(self):
+        """Añade un ingrediente a la lista temporal de la receta."""
+        nombre_ing = self.combo_ingredientes_menu.get()
+        cant_str = self.entry_cant_ing_menu.get()
+
+        if not nombre_ing or not cant_str:
+            return # Ignorar si falta dato
+        
+        try:
+            cantidad = float(cant_str)
+            if cantidad <= 0: raise ValueError
+        except ValueError:
+            tk.messagebox.showerror("Error", "Cantidad inválida")
+            return
+
+        ing_id = self.mapa_ingredientes_temp.get(nombre_ing)
+        
+        # Agregar a la lista lógica
+        self.temp_receta.append({"ingrediente_id": ing_id, "cantidad": cantidad})
+
+        # Actualizar visualización
+        self.lista_ingredientes_label.configure(state="normal")
+        self.lista_ingredientes_label.insert("end", f"- {nombre_ing}: {cantidad}\n")
+        self.lista_ingredientes_label.configure(state="disabled")
+        
+        # Limpiar entrada
+        self.entry_cant_ing_menu.delete(0, "end")
+
+    def guardar_nuevo_menu_bd(self):
+        """Llama al CRUD para guardar el menú completo."""
+        nombre = self.entry_nuevo_menu_nombre.get().strip()
+        desc = self.entry_nuevo_menu_desc.get().strip()
+        precio_str = self.entry_nuevo_menu_precio.get().strip()
+
+        if not nombre or not precio_str:
+            tk.messagebox.showerror("Error", "Falta nombre o precio")
+            return
+
+        if not self.temp_receta:
+            tk.messagebox.showerror("Error", "El menú debe tener al menos un ingrediente.")
+            return
+
+        try:
+            precio = float(precio_str)
+        except ValueError:
+            tk.messagebox.showerror("Error", "El precio debe ser un número.")
+            return
+
+        db = self.get_db_session()
+        if not db: return
+
+        try:
+            resultado = mcrud.crear_menu(db, nombre, desc, precio, self.temp_receta)
+            
+            if isinstance(resultado, str) and "Error" in resultado:
+                tk.messagebox.showerror("Error BD", resultado)
+            elif resultado:
+                tk.messagebox.showinfo("Éxito", f"Menú '{nombre}' creado correctamente.")
+                self.ventana_menu.destroy() # Cerrar ventana
+                self.load_menus() # Recargar lista principal
+            else:
+                tk.messagebox.showerror("Error", "No se pudo crear el menú.")
+        except Exception as e:
+             tk.messagebox.showerror("Error Crítico", str(e))
+        finally:
+            db.close()
+
+
+
 
     def load_menus(self):
         """Carga los menús existentes en el Treeview."""
@@ -901,37 +1284,75 @@ class RestauranteApp(ctk.CTk):
     # PESTAÑA 5: GRÁFICOS
     # ====================================================
 
+    # ====================================================
+    # PESTAÑA 5: GRÁFICOS ESTADÍSTICOS (CORREGIDO)
+    # ====================================================
+
     def setup_graficos_tab(self):
         tab = self.tabview.tab("Estadísticas")
         tab.grid_columnconfigure(0, weight=1)
-        tab.grid_rowconfigure(2, weight=1)
+        tab.grid_rowconfigure(2, weight=1) # Fila 2 se expande para el gráfico
 
+        # Título
         ctk.CTkLabel(tab, text="📊 Gráficos Estadísticos", font=ctk.CTkFont(size=18, weight="bold")).grid(row=0, column=0, padx=20, pady=15)
 
+        # Frame de Controles
         control_frame = ctk.CTkFrame(tab)
         control_frame.grid(row=1, column=0, padx=20, pady=(0, 10), sticky="ew")
-        control_frame.grid_columnconfigure(1, weight=1) # Damos peso a la columna del combobox
-
-        # Elemento 1: Etiqueta
-        ctk.CTkLabel(control_frame, text="Seleccionar Tipo de Reporte:").grid(row=0, column=0, padx=(10, 5), pady=5, sticky="w")
+        
+        ctk.CTkLabel(control_frame, text="Tipo de Reporte:").pack(side="left", padx=10, pady=10)
+        
         self.grafico_var = ctk.StringVar(control_frame)
         opciones_graficos = ["Ventas Diarias", "Ventas Mensuales", "Ventas Anuales", "Menús Más Comprados", "Uso Total de Ingredientes"]
         self.grafico_var.set(opciones_graficos[0]) 
         
-        # Elemento 2: ComboBox
-        grafico_menu = ctk.CTkComboBox(control_frame, variable=self.grafico_var, values=opciones_graficos, state="readonly", width=250)
-        grafico_menu.grid(row=0, column=1, padx=5, pady=5, sticky="ew") # Columna 1
+        grafico_menu = ctk.CTkComboBox(control_frame, variable=self.grafico_var, values=opciones_graficos, state="readonly", width=200)
+        grafico_menu.pack(side="left", padx=10, pady=10)
         
-        # Elemento 3: Botón
-        ctk.CTkButton(control_frame, 
-                      text="Generar Reporte", 
-                      command=self.generate_report).grid(row=0, column=2, padx=(10, 10), pady=5, sticky="e") # Columna 2
+        ctk.CTkButton(control_frame, text="Generar Reporte", command=self.generate_report).pack(side="left", padx=10, pady=10)
         
-        self.report_text = ctk.CTkTextbox(tab, height=200)
-        self.report_text.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="nsew")
-
+        # --- CORRECCIÓN CLAVE ---
+        # Definimos self.chart_frame aquí mismo para que exista cuando presionas el botón
+        self.chart_frame = ctk.CTkFrame(tab)
+        self.chart_frame.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="nsew")
+    
     def generate_report(self):
-        """Genera el reporte estadístico basado en la selección."""
-        self.mostrar_mensaje("La generación de reportes requiere la implementación final del módulo graficos.py.", tipo="info")
-        # Lógica de generación de reportes (Llama a graficos.py)
-        pass
+        """Genera el reporte llamando a graficos.py y lo incrusta en la GUI."""
+        seleccion = self.grafico_var.get()
+        
+        db = self.get_db_session()
+        if not db: return
+
+        fig = None
+        try:
+            # 1. Limpiar gráfico anterior si existe (para que no se monten uno encima de otro)
+            for widget in self.chart_frame.winfo_children():
+                widget.destroy()
+
+            # 2. Llamar a la función correspondiente en graficos.py según lo que elegiste en el menú
+            if seleccion == "Ventas Diarias":
+                fig = gcrud.generar_grafico_ventas(db, "day")
+            elif seleccion == "Ventas Mensuales":
+                fig = gcrud.generar_grafico_ventas(db, "month")
+            elif seleccion == "Ventas Anuales":
+                fig = gcrud.generar_grafico_ventas(db, "year")
+            elif seleccion == "Menús Más Comprados":
+                fig = gcrud.generar_grafico_menus(db)
+            elif seleccion == "Uso Total de Ingredientes":
+                fig = gcrud.generar_grafico_ingredientes(db)
+
+            # 3. Dibujar el gráfico en la ventana
+            if fig:
+                # Esto es lo que "pega" el gráfico de Matplotlib dentro de la ventana de Tkinter
+                canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
+                canvas.draw()
+                canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=10)
+            else:
+                # Si no hay ventas aun, mostramos este mensaje
+                label = ctk.CTkLabel(self.chart_frame, text="No hay datos suficientes para generar este gráfico.\n(Realiza algunos pedidos primero)", font=("Arial", 16))
+                label.pack(pady=50)
+
+        except Exception as e:
+            self.mostrar_mensaje(f"Error al generar gráfico: {e}", tipo="error")
+        finally:
+            db.close()

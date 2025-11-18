@@ -1,126 +1,135 @@
-# =======================================================
 # Archivo: graficos.py
-# Módulo para generar las consultas de reportes estadísticos
-# =======================================================
 
+import matplotlib.pyplot as plt
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
-from models import Pedido, PedidoMenu, Menu, MenuIngrediente
+from sqlalchemy import func
+from models import Pedido, PedidoMenu, Menu, MenuIngrediente, Ingrediente
 from datetime import datetime
 
-def _check_data(results, grafico_nombre: str):
-    """Funcion auxiliar para verificar si hay datos y reportar el error."""
-    if not results:
-        # Se imprime a la consola, ya que la GUI maneja el mensaje de "No hay datos disponibles"
-        print(f"\n--- [Reporte] No hay datos disponibles para el gráfico: {grafico_nombre} ---")
-        return False
-    return True
+# Configuración para que los gráficos se vean bien en fondo oscuro
+plt.style.use('dark_background')
 
-# --------------------------------------------------------------------
-# 1. Ventas por Fecha (Diarias, Mensuales, Anuales)
-# --------------------------------------------------------------------
-
-def ventas_por_periodo(db: Session, periodo: str):
+# --- Función Auxiliar para Ventas (CORREGIDA) ---
+def obtener_datos_ventas(db: Session, periodo: str):
     """
-    Calcula el total de ventas agrupado por el periodo especificado.
-    Periodos válidos: 'day', 'month', 'year'. (Usando términos en inglés para func.strftime)
+    Agrupa las ventas por fecha (diaria, mensual, anual).
+    Retorna dos listas: etiquetas (fechas) y valores (total $).
     """
+    pedidos = db.query(Pedido).all()
     
-    # Define la unidad de tiempo para agrupar (SQLite/SQLAlchemy)
-    if periodo == 'day':
-        # Agrupa por día específico (YYYY-MM-DD)
-        label_group = func.strftime('%Y-%m-%d', Pedido.fecha) 
-        nombre_grafico = "Ventas Diarias"
-    elif periodo == 'month':
-        # Agrupa por mes (YYYY-MM)
-        label_group = func.strftime('%Y-%m', Pedido.fecha)
-        nombre_grafico = "Ventas Mensuales"
-    elif periodo == 'year':
-        # Agrupa por año (YYYY)
-        label_group = func.strftime('%Y', Pedido.fecha)
-        nombre_grafico = "Ventas Anuales"
-    else:
-        raise ValueError("Período inválido. Use 'day', 'month' o 'year'.")
+    datos = {}
+    for p in pedidos:
+        if not p.fecha: continue 
+        
+        # CORRECCIÓN: Manejamos la fecha como Objeto o como String
+        # para evitar el error 'not subscriptable'.
+        fecha_obj = p.fecha
+        
+        # Si por alguna razón llega como string, lo convertimos a objeto
+        if isinstance(fecha_obj, str):
+            try:
+                # Intentamos parsear formatos comunes
+                if len(fecha_obj) > 10:
+                    fecha_obj = datetime.strptime(fecha_obj, "%Y-%m-%d %H:%M:%S")
+                else:
+                    fecha_obj = datetime.strptime(fecha_obj, "%Y-%m-%d")
+            except:
+                continue # Si falla, saltamos este pedido
 
-    try:
-        resultados = db.query(
-            label_group.label('periodo'),
-            func.sum(Pedido.total).label('total_ventas')
-        ).filter(
-            Pedido.fecha != None # Asegura que solo se consideren pedidos con fecha
-        ).group_by(label_group).order_by(label_group).all()
+        # Ahora generamos la "key" (la etiqueta del gráfico) usando strftime
+        if periodo == 'mensual' or periodo == 'month':
+            key = fecha_obj.strftime('%Y-%m') # Año-Mes
+        elif periodo == 'anual' or periodo == 'year':
+            key = fecha_obj.strftime('%Y')    # Año
+        else:
+            key = fecha_obj.strftime('%Y-%m-%d') # Diario (default)
 
-    except Exception as e:
-        print(f"Error al generar gráfico de ventas por periodo: {e}")
-        return None
+        datos[key] = datos.get(key, 0) + p.total
 
-    if _check_data(resultados, nombre_grafico):
-        # Usa map y lambda para formatear la salida como lista de diccionarios
-        return list(map(
-            lambda r: {'periodo': r.periodo, 'total_ventas': f"${r.total_ventas:,.2f}"}, 
-            resultados
-        ))
-    return None
-
-
-# --------------------------------------------------------------------
-# 2. Distribución de Menús más Comprados
-# --------------------------------------------------------------------
-
-def distribucion_menus_mas_comprados(db: Session):
-    """
-    Muestra la cantidad total vendida de cada menú.
-    """
-    nombre_grafico = "Distribución de Menús Comprados"
+    # Ordenar por fecha
+    fechas_ordenadas = sorted(datos.keys())
+    totales = [datos[k] for k in fechas_ordenadas]
     
-    try:
-        # Consulta al ORM: Suma la cantidad comprada (PedidoMenu.cantidad) agrupada por el nombre del Menú.
-        resultados = db.query(
-            Menu.nombre.label('menu'),
-            func.sum(PedidoMenu.cantidad).label('cantidad_vendida')
-        ).join(PedidoMenu, Menu.id == PedidoMenu.menu_id) \
-        .group_by(Menu.nombre) \
-        .order_by(desc('cantidad_vendida')) \
-        .all()
-        
-    except Exception as e:
-        print(f"Error al generar gráfico de menús más comprados: {e}")
-        return None
-        
-    if _check_data(resultados, nombre_grafico):
-        return list(map(lambda r: {'menu': r.menu, 'cantidad_vendida': int(r.cantidad_vendida)}, resultados))
-    return None
+    return fechas_ordenadas, totales
 
-# --------------------------------------------------------------------
-# 3. Uso de Ingredientes en todos los Pedidos
-# --------------------------------------------------------------------
+# --- 1. Gráfico de Ventas (Barras) ---
+# En graficos.py
 
-def uso_ingredientes_en_pedidos(db: Session):
-    """
-    Calcula la cantidad total de cada ingrediente consumida en todos los pedidos.
-    """
-    nombre_grafico = "Uso Total de Ingredientes"
+def generar_grafico_ventas(db: Session, tipo: str):
+    # Mapeamos los nombres del combo box a los internos
+    tipo_interno = "day"
+    titulo_bonito = "Diarias" # Default
 
-    try:
-        # Consulta al ORM: 
-        # Calcula el total consumido: (MenuIngrediente.cantidad * PedidoMenu.cantidad)
-        resultados = db.query(
-            MenuIngrediente.ingrediente.nombre.label('ingrediente'),
-            func.sum(MenuIngrediente.cantidad * PedidoMenu.cantidad).label('cantidad_total_consumida')
-        ).join(Menu, Menu.id == MenuIngrediente.menu_id) \
-        .join(PedidoMenu, Menu.id == PedidoMenu.menu_id) \
-        .group_by(MenuIngrediente.ingrediente.nombre) \
-        .order_by(desc('cantidad_total_consumida')) \
-        .all()
+    if "Mensual" in tipo or tipo == "month": 
+        tipo_interno = "month"
+        titulo_bonito = "Mensuales"
+    elif "Anual" in tipo or tipo == "year": 
+        tipo_interno = "year"
+        titulo_bonito = "Anuales"
+    elif "Diaria" in tipo or tipo == "day":
+        tipo_interno = "day"
+        titulo_bonito = "Diarias"
+
+    x, y = obtener_datos_ventas(db, tipo_interno)
+    
+    if not x: return None 
+
+    fig, ax = plt.subplots(figsize=(6, 4), dpi=100)
+    ax.bar(x, y, color='#1f77b4') 
+    
+    # Usamos el título bonito en español
+    ax.set_title(f"Ventas {titulo_bonito}")
+    ax.set_ylabel("Total ($)")
+    ax.set_xlabel("Fecha")
+    
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    
+    return fig
+
+# --- 2. Gráfico de Menús (Torta/Pie) ---
+def generar_grafico_menus(db: Session):
+    resultados = db.query(Menu.nombre, func.sum(PedidoMenu.cantidad))\
+                   .join(PedidoMenu, Menu.id == PedidoMenu.menu_id)\
+                   .group_by(Menu.nombre).all()
+
+    if not resultados: return None
+
+    nombres = [r[0] for r in resultados]
+    cantidades = [r[1] for r in resultados]
+
+    fig, ax = plt.subplots(figsize=(6, 4), dpi=100)
+    ax.pie(cantidades, labels=nombres, autopct='%1.1f%%', startangle=140)
+    ax.set_title("Distribución de Menús Vendidos")
+    plt.tight_layout()
+    return fig
+
+# --- 3. Gráfico de Ingredientes (Barras Horizontales) ---
+def generar_grafico_ingredientes(db: Session):
+    pedidos_items = db.query(PedidoMenu).all()
+    uso_ingredientes = {}
+
+    if not pedidos_items: return None
+
+    for item in pedidos_items:
+        menu = item.menu
+        cantidad_comprada = item.cantidad
         
-    except Exception as e:
-        print(f"Error al generar gráfico de uso de ingredientes: {e}")
-        return None
+        if not menu: continue
         
-    if _check_data(resultados, nombre_grafico):
-        # Usa map y lambda para devolver los resultados formateados
-        return list(map(
-            lambda r: {'ingrediente': r.ingrediente, 'cantidad_consumida': f"{r.cantidad_total_consumida:,.2f}"}, 
-            resultados
-        ))
-    return None
+        for receta in menu.items_receta:
+            nombre_ing = receta.ingrediente.nombre
+            cantidad_usada = receta.cantidad * cantidad_comprada
+            uso_ingredientes[nombre_ing] = uso_ingredientes.get(nombre_ing, 0) + cantidad_usada
+
+    if not uso_ingredientes: return None
+
+    nombres = list(uso_ingredientes.keys())
+    totales = list(uso_ingredientes.values())
+
+    fig, ax = plt.subplots(figsize=(6, 4), dpi=100)
+    ax.barh(nombres, totales, color='#2ca02c') 
+    ax.set_title("Uso Total de Ingredientes")
+    ax.set_xlabel("Cantidad Consumida (Unidades/Kg)")
+    plt.tight_layout()
+    return fig 

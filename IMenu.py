@@ -8,3 +8,6 @@ class IMenu(Protocol):
     precio: float
     icono_path: str
     cantidad: int
+
+def calcular_total(self) -> float:
+    ...

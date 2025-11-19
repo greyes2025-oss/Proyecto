@@ -1,4 +1,3 @@
-# ElementoMenu.py
 from IMenu import IMenu
 from typing import List
 from Ingrediente import Ingrediente
@@ -10,3 +9,8 @@ class CrearMenu(IMenu):
         self.precio = precio
         self.icono_path = icono_path
         self.cantidad = cantidad
+
+    # --- mejora---
+    def calcular_total(self) -> float:
+    
+        return self.precio * self.cantidad
